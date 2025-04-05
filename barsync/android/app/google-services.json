@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "386330705309",
+    "project_id": "barsync-68a03",
+    "storage_bucket": "barsync-68a03.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:386330705309:android:df3adb7742a6187892c374",
+        "android_client_info": {
+          "package_name": "com.example.barsync"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADlm5XMzaS9ikd3ovrMThIDUP180-3w-Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
