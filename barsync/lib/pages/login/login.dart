@@ -1,6 +1,12 @@
 import 'dart:ui'; // Para usar BackdropFilter
 import 'package:barsync/components/alert.dart';
+import 'package:barsync/models/userModel.dart';
+import 'package:barsync/pages/admin/admin.dart';
+import 'package:barsync/pages/boss/bossRes.dart';
+import 'package:barsync/pages/kitchen/kitchen.dart';
+import 'package:barsync/pages/waiter/rooms.dart';
 import 'package:barsync/services/auth/auth.dart';
+import 'package:barsync/services/database/databaseManager.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -14,6 +20,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  String rol = "";
 
   void _login() async {
     String email = emailController.text;
@@ -30,6 +37,8 @@ class _LoginScreenState extends State<LoginScreen> {
           // Solo mostrar si el usuario es null (login fallido)
           showDialog(
             context: context,
+            barrierDismissible:
+                false, // <-- ¡Esta línea evita que se cierre tocando fuera!
             builder:
                 (context) => const CustomAlertDialog(
                   title: "Error de credenciales",
@@ -47,24 +56,128 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
           );
         } else {
-          showDialog(
-            context: context,
-            builder:
-                (context) => const CustomAlertDialog(
-                  title: "Login exitoso",
-                  message: "Sus credenciales son correctas.",
-                  buttonText: "Aceptar", // Texto del botón
-                  colorbg: Color.fromRGBO(
-                    23,
-                    23,
-                    34,
-                    1,
-                  ), // Color del ícono y título
-                  icon: Icons.verified_outlined, // Ícono del título
-                  textColor: Colors.white, // Color del texto del botón
-                  buttonColor: Colors.blueAccent, // Color de fondo del botón
-                ),
-          );
+          // Obtener datos del usuario desde Firestore
+          List<UserModel> users = await obtenerUsers(
+            email,
+          ).firstWhere((users) => users.isNotEmpty, orElse: () => []);
+
+          if (users.isNotEmpty) {
+            UserModel userModel = users.first;
+            print("Usuario logueado: ${userModel.email} - ${userModel.rol}");
+
+            rol = userModel.rol;
+            switch (rol.toLowerCase()) {
+              case "waiter":
+                // Mostrar diálogo exitoso (como ya tenías)
+                showDialog(
+                  context: context,
+                  barrierDismissible:
+                      false, // <-- ¡Esta línea evita que se cierre tocando fuera!
+                  builder:
+                      (context) => CustomAlertDialog(
+                        title: "Login exitoso",
+                        message: "Sus credenciales son correctas.",
+                        buttonText: "Aceptar",
+                        colorbg: const Color.fromRGBO(23, 23, 34, 1),
+                        icon: Icons.verified_outlined,
+                        textColor: Colors.white,
+                        buttonColor: Colors.blueAccent,
+                        onConfirm: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RoomsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                );
+                break;
+              case "kitchen":
+                // Mostrar diálogo exitoso (como ya tenías)
+                showDialog(
+                  context: context,
+                  barrierDismissible:
+                      false, // <-- ¡Esta línea evita que se cierre tocando fuera!
+                  builder:
+                      (context) => CustomAlertDialog(
+                        title: "Login exitoso",
+                        message: "Sus credenciales son correctas.",
+                        buttonText: "Aceptar",
+                        colorbg: const Color.fromRGBO(23, 23, 34, 1),
+                        icon: Icons.verified_outlined,
+                        textColor: Colors.white,
+                        buttonColor: Colors.blueAccent,
+                        onConfirm: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const KitchenScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                );
+                break;
+              case "boss":
+                // Mostrar diálogo exitoso (como ya tenías)
+                showDialog(
+                  context: context,
+                  barrierDismissible:
+                      false, // <-- ¡Esta línea evita que se cierre tocando fuera!
+                  builder:
+                      (context) => CustomAlertDialog(
+                        title: "Login exitoso",
+                        message: "Sus credenciales son correctas.",
+                        buttonText: "Aceptar",
+                        colorbg: const Color.fromRGBO(23, 23, 34, 1),
+                        icon: Icons.verified_outlined,
+                        textColor: Colors.white,
+                        buttonColor: Colors.blueAccent,
+                        onConfirm: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const BossScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                );
+                break;
+              case "admin":
+                // Mostrar diálogo exitoso (como ya tenías)
+                showDialog(
+                  context: context,
+                  barrierDismissible:
+                      false, // <-- ¡Esta línea evita que se cierre tocando fuera!
+                  builder:
+                      (context) => CustomAlertDialog(
+                        title: "Login exitoso",
+                        message: "Sus credenciales son correctas.",
+                        buttonText: "Aceptar",
+                        colorbg: const Color.fromRGBO(23, 23, 34, 1),
+                        icon: Icons.verified_outlined,
+                        textColor: Colors.white,
+                        buttonColor: Colors.blueAccent,
+                        onConfirm: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AdminScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                );
+                break;
+              default:
+                print("Rol desconocido: $rol");
+                break;
+            }
+          } else {
+            print("No se encontró ningún usuario con ese email.");
+          }
         }
       } catch (e) {
         print("Error: $e");
@@ -72,6 +185,8 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       showDialog(
         context: context,
+        barrierDismissible:
+            false, // <-- ¡Esta línea evita que se cierre tocando fuera!
         builder:
             (context) => const CustomAlertDialog(
               title: "Campo Vacío",

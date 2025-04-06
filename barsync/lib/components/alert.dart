@@ -8,6 +8,7 @@ class CustomAlertDialog extends StatelessWidget {
   final IconData icon; // Ícono en el título
   final Color textColor; // Color del texto del botón
   final Color buttonColor; // Color de fondo del botón
+  final VoidCallback? onConfirm;
 
   const CustomAlertDialog({
     super.key,
@@ -20,6 +21,7 @@ class CustomAlertDialog extends StatelessWidget {
         Colors.white, // Color del texto del botón por defecto blanco
     this.buttonColor =
         Colors.redAccent, // Color de fondo del botón por defecto rojo
+    this.onConfirm,
   });
 
   @override
@@ -69,6 +71,9 @@ class CustomAlertDialog extends StatelessWidget {
               ),
               onPressed: () {
                 Navigator.of(context).pop(); // Cierra el diálogo
+                if (onConfirm != null) {
+                  onConfirm!(); // Llama a la función si se proporciona
+                }
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
