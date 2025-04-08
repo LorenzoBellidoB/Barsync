@@ -25,6 +25,17 @@ class UserModel {
     };
   }
 
+  // Crear objeto desde JSON sin id
+  factory UserModel.fromJsonWithoutId(Map<String, dynamic> json) {
+    return UserModel(
+      id: json['id'],
+      name: json['name'],
+      email: json['email'],
+      rol: json['role'],
+      register_date: json['register_date'],
+    );
+  }
+
   // Crear objeto desde JSON (desde Firebase)
   factory UserModel.fromJson(Map<String, dynamic> json, String id) {
     return UserModel(
