@@ -13,13 +13,31 @@ class CreateRestScreen extends StatefulWidget {
 
 class _CreateRestScreenState extends State<CreateRestScreen> {
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(title: 'BarSync', home: BarSyncForm());
-  }
-}
+  final TextEditingController _camarerosCountController =
+      TextEditingController();
+  final TextEditingController _cocinerosCountController =
+      TextEditingController();
 
-class BarSyncForm extends StatelessWidget {
-  final TextEditingController dateController = TextEditingController();
+  List<TextEditingController> camarerosControllers = [];
+  List<TextEditingController> cocinerosControllers = [];
+
+  void _updateDynamicFields() {
+    final int camarerosCount =
+        int.tryParse(_camarerosCountController.text) ?? 0;
+    final int cocinerosCount =
+        int.tryParse(_cocinerosCountController.text) ?? 0;
+
+    setState(() {
+      camarerosControllers = List.generate(
+        camarerosCount,
+        (index) => TextEditingController(),
+      );
+      cocinerosControllers = List.generate(
+        cocinerosCount,
+        (index) => TextEditingController(),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +65,121 @@ class BarSyncForm extends StatelessWidget {
         ),
       ),
       backgroundColor: Colors.grey.shade100,
-      body: Row(children: [Menu(role: 'Admin'), Expanded(child: Container())]),
+      body: Row(
+        children: [
+          Menu(role: 'Admin'),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ListView(
+                children: [
+                  Wrap(
+                    spacing: 20,
+                    runSpacing: 20,
+                    children: [
+                      _buildTextField("Nombre"),
+                      _buildTextField("Fecha"),
+                      _buildTextField("Status"),
+                      _buildTextField("Dirección"),
+                      _buildTextField("Teléfono"),
+                      _buildTextField("Email"),
+                      _buildTextField("Password", obscure: true),
+                    ],
+                  ),
+                  SizedBox(height: 20),
+                  Divider(),
+                  SizedBox(height: 20),
+                  Wrap(
+                    spacing: 20,
+                    runSpacing: 20,
+                    children: [
+                      SizedBox(
+                        width: 250,
+                        child: TextField(
+                          controller: _camarerosCountController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Número de Camareros',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (_) => _updateDynamicFields(),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 250,
+                        child: TextField(
+                          controller: _cocinerosCountController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Número de Cocineros',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (_) => _updateDynamicFields(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20),
+                  if (camarerosControllers.isNotEmpty) ...[
+                    Text(
+                      "Camareros",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    ...camarerosControllers.asMap().entries.map((entry) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: _buildDynamicTextField(
+                          "Camarero ${entry.key + 1}",
+                          entry.value,
+                        ),
+                      );
+                    }),
+                  ],
+                  if (cocinerosControllers.isNotEmpty) ...[
+                    SizedBox(height: 20),
+                    Text(
+                      "Cocineros",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    ...cocinerosControllers.asMap().entries.map((entry) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: _buildDynamicTextField(
+                          "Cocinero ${entry.key + 1}",
+                          entry.value,
+                        ),
+                      );
+                    }),
+                  ],
+                  SizedBox(height: 30),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {},
+                        icon: Icon(Icons.add),
+                        label: Text('Crear'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                        ),
+                      ),
+                      SizedBox(width: 20),
+                      ElevatedButton.icon(
+                        onPressed: () {},
+                        icon: Icon(Icons.cancel),
+                        label: Text('Cancelar'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.lightBlueAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           showDialog(
@@ -110,6 +242,22 @@ class BarSyncForm extends StatelessWidget {
       width: 250,
       child: TextField(
         obscureText: obscure,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDynamicTextField(
+    String label,
+    TextEditingController controller,
+  ) {
+    return SizedBox(
+      width: 250,
+      child: TextField(
+        controller: controller,
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(),
