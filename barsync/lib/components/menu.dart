@@ -18,47 +18,97 @@ class Menu extends StatelessWidget {
         crossAxisAlignment:
             CrossAxisAlignment.start, // Alinea todo a la izquierda
         children: [
-          ListTile(
-            contentPadding:
-                EdgeInsets.zero, // Elimina el padding predeterminado
-            title: TextButton.icon(
-              onPressed: () {},
-              icon: Icon(
-                Icons.restaurant,
-                color: Color.fromRGBO(104, 104, 155, 1),
-              ),
-              label: Text(
-                'Administración de Restaurantes',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                ), // Asegura que el texto sea blanco
-              ),
-              style: TextButton.styleFrom(
-                alignment:
-                    Alignment.centerLeft, // Alinea el botón a la izquierda
-              ),
-            ),
-          ),
-          ListTile(
-            contentPadding:
-                EdgeInsets.zero, // Elimina el padding predeterminado
-            title: TextButton.icon(
-              onPressed: () {},
-              icon: Icon(Icons.person, color: Color.fromRGBO(104, 104, 155, 1)),
-              label: Text(
-                'Administración de Usuarios',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                ), // Asegura que el texto sea blanco
-              ),
-              style: TextButton.styleFrom(
-                alignment:
-                    Alignment.centerLeft, // Alinea el botón a la izquierda
+          if (role == 'Admin') ...[
+            ListTile(
+              contentPadding:
+                  EdgeInsets.zero, // Elimina el padding predeterminado
+              title: TextButton.icon(
+                onPressed: () {},
+                icon: Icon(
+                  Icons.restaurant,
+                  color: Color.fromRGBO(104, 104, 155, 1),
+                ),
+                label: Text(
+                  'Administración de Restaurantes',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ), // Asegura que el texto sea blanco
+                ),
+                style: TextButton.styleFrom(
+                  alignment:
+                      Alignment.centerLeft, // Alinea el botón a la izquierda
+                ),
               ),
             ),
-          ),
+            ListTile(
+              contentPadding:
+                  EdgeInsets.zero, // Elimina el padding predeterminado
+              title: TextButton.icon(
+                onPressed: () {},
+                icon: Icon(
+                  Icons.person,
+                  color: Color.fromRGBO(104, 104, 155, 1),
+                ),
+                label: Text(
+                  'Administración de Usuarios',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ), // Asegura que el texto sea blanco
+                ),
+                style: TextButton.styleFrom(
+                  alignment:
+                      Alignment.centerLeft, // Alinea el botón a la izquierda
+                ),
+              ),
+            ),
+          ] else if (role == 'Boss') ...[
+            ListTile(
+              contentPadding:
+                  EdgeInsets.zero, // Elimina el padding predeterminado
+              title: TextButton.icon(
+                onPressed: () {},
+                icon: Icon(
+                  Icons.restaurant,
+                  color: Color.fromRGBO(104, 104, 155, 1),
+                ),
+                label: Text(
+                  'Menú',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ), // Asegura que el texto sea blanco
+                ),
+                style: TextButton.styleFrom(
+                  alignment:
+                      Alignment.centerLeft, // Alinea el botón a la izquierda
+                ),
+              ),
+            ),
+            ListTile(
+              contentPadding:
+                  EdgeInsets.zero, // Elimina el padding predeterminado
+              title: TextButton.icon(
+                onPressed: () {},
+                icon: Icon(
+                  Icons.person,
+                  color: Color.fromRGBO(104, 104, 155, 1),
+                ),
+                label: Text(
+                  'Mesas',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ), // Asegura que el texto sea blanco
+                ),
+                style: TextButton.styleFrom(
+                  alignment:
+                      Alignment.centerLeft, // Alinea el botón a la izquierda
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

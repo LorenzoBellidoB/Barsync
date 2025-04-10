@@ -4,11 +4,12 @@ class CustomAlertDialog extends StatelessWidget {
   final String title;
   final String message;
   final String buttonText;
-  final Color colorbg; // Color del ícono y título
-  final IconData icon; // Ícono en el título
-  final Color textColor; // Color del texto del botón
-  final Color buttonColor; // Color de fondo del botón
+  final Color colorbg;
+  final IconData icon;
+  final Color textColor;
+  final Color buttonColor;
   final VoidCallback? onConfirm;
+  final List<Widget>? actions; // 👈 Nuevo parámetro
 
   const CustomAlertDialog({
     super.key,
@@ -17,11 +18,10 @@ class CustomAlertDialog extends StatelessWidget {
     this.buttonText = "Aceptar",
     this.colorbg = Colors.redAccent,
     this.icon = Icons.warning_amber_rounded,
-    this.textColor =
-        Colors.white, // Color del texto del botón por defecto blanco
-    this.buttonColor =
-        Colors.redAccent, // Color de fondo del botón por defecto rojo
+    this.textColor = Colors.white,
+    this.buttonColor = Colors.redAccent,
     this.onConfirm,
+    this.actions, // 👈 Incluido en el constructor
   });
 
   @override
@@ -31,10 +31,7 @@ class CustomAlertDialog extends StatelessWidget {
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth:
-              screenWidth > 600
-                  ? 400
-                  : double.infinity, // Limita el ancho en tablet
+          maxWidth: screenWidth > 600 ? 400 : double.infinity,
         ),
         child: AlertDialog(
           shape: RoundedRectangleBorder(
@@ -43,14 +40,14 @@ class CustomAlertDialog extends StatelessWidget {
           backgroundColor: colorbg,
           title: Row(
             children: [
-              Icon(icon, color: buttonColor), // Ícono personalizable
+              Icon(icon, color: buttonColor),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: buttonColor, // Color del título
+                    color: buttonColor,
                   ),
                 ),
               ),
@@ -60,27 +57,30 @@ class CustomAlertDialog extends StatelessWidget {
             message,
             style: TextStyle(fontSize: 16, color: textColor),
           ),
-          actions: [
-            TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: textColor, // Color del texto del botón
-                backgroundColor: buttonColor, // Color de fondo del botón
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+
+          // 👇 Aquí usamos los actions pasados o el default
+          actions:
+              actions ??
+              [
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: textColor,
+                    backgroundColor: buttonColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    if (onConfirm != null) onConfirm!();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                    child: Text(buttonText),
+                  ),
                 ),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop(); // Cierra el diálogo
-                if (onConfirm != null) {
-                  onConfirm!(); // Llama a la función si se proporciona
-                }
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                child: Text(buttonText), // Texto del botón
-              ),
-            ),
-          ],
+              ],
         ),
       ),
     );
