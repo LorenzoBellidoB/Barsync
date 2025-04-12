@@ -8,7 +8,7 @@ class RestaurantModel {
   bool state;
   String address;
   String phone;
-  String email;
+  String emailBoss;
   String password;
   List<UserModel> waiters;
   List<UserModel> cookers;
@@ -20,7 +20,7 @@ class RestaurantModel {
     required this.state,
     required this.address,
     required this.phone,
-    required this.email,
+    required this.emailBoss,
     required this.password,
     this.waiters = const [],
     this.cookers = const [],
@@ -30,7 +30,7 @@ class RestaurantModel {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
-      'email': email,
+      'emailBoss': emailBoss,
       'date': date,
       'state': state,
       'address': address,
@@ -49,7 +49,7 @@ class RestaurantModel {
       state: json['state'],
       address: json['address'],
       phone: json['phone'],
-      email: json['email'],
+      emailBoss: json['emailBoss'],
       password: json['password'],
       waiters: json['waiters'],
       cookers: json['cookers'],
@@ -61,7 +61,7 @@ class RestaurantModel {
   Map<String, dynamic> toJsonWithoutUsers() {
     return {
       'name': name,
-      'email': email,
+      'emailBoss': emailBoss,
       'date': date,
       'state': state,
       'address': address,
@@ -81,7 +81,7 @@ class RestaurantModel {
       state: json['state'],
       address: json['address'],
       phone: json['phone'],
-      email: json['email'],
+      emailBoss: json['emailBoss'],
       password: json['password'],
       date: json['date'],
     );

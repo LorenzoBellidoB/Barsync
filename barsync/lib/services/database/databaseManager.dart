@@ -4,10 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Users
 Future<void> saveUser(UserModel user) async {
-  await FirebaseFirestore.instance
+  final docRef = await FirebaseFirestore.instance
       .collection('users')
-      .doc(user.id)
-      .set(user.toJson());
+      .add(user.toJson());
+
+  // Para obtener el id automatico de firebase
+  await docRef.update({'id': docRef.id});
 }
 
 Stream<List<UserModel>> getUsers() {
@@ -38,7 +40,7 @@ Stream<List<UserModel>> getUsersByEmail(String email) {
 // Restaurants
 Stream<List<RestaurantModel>> getRestaurants() {
   return FirebaseFirestore.instance
-      .collection('users')
+      .collection('restaurants')
       .snapshots()
       .map(
         (snapshot) =>
@@ -48,22 +50,24 @@ Stream<List<RestaurantModel>> getRestaurants() {
       );
 }
 
-Stream<List<Map<String, dynamic>>> getRestaurantsMap() {
+Stream<List<RestaurantModel>> getRestaurantByEmail(String email) {
   return FirebaseFirestore.instance
-      .collection('users')
+      .collection('restaurants')
+      .where('emailBoss', isEqualTo: email)
       .snapshots()
       .map(
         (snapshot) =>
-            snapshot.docs.map((doc) {
-              final restaurant = RestaurantModel.fromJson(doc.data(), doc.id);
-              return restaurant.toMap(); // Convertir a Map<String, dynamic>
-            }).toList(),
+            snapshot.docs
+                .map((doc) => RestaurantModel.fromJson(doc.data(), doc.id))
+                .toList(),
       );
 }
 
 Future<void> saveRestaurant(RestaurantModel restaurant) async {
-  await FirebaseFirestore.instance
+  final docRef = await FirebaseFirestore.instance
       .collection('restaurants')
-      .doc(restaurant.id)
-      .set(restaurant.toJson());
+      .add(restaurant.toJson());
+
+  // Si quieres actualizar el mismo documento para guardar el id dentro
+  await docRef.update({'id': docRef.id});
 }

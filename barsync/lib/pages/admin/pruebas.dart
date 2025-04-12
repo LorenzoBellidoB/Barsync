@@ -55,7 +55,7 @@ class _AdminScreenState extends State<AdminScreen> {
             state: data['state'],
             address: data['address'],
             phone: data['phone'],
-            email: data['email'],
+            emailBoss: data['email'],
             password: data['password'],
             date: data['date'],
             waiters: waitersList,

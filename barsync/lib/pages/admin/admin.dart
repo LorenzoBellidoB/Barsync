@@ -38,7 +38,7 @@ class _AdminScreenState extends State<AdminScreen> {
               List<RestaurantModel> fetchedRestaurantes = [];
 
               for (var doc in snapshot.docs) {
-                var data = doc.data() as Map<String, dynamic>;
+                var data = doc.data();
 
                 List<UserModel> waitersList = [];
                 List<UserModel> cookersList = [];
@@ -91,7 +91,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       state: data['state'],
                       address: data['address'],
                       phone: data['phone'],
-                      email: data['email'],
+                      emailBoss: data['emailBoss'],
                       password: data['password'],
                       date: data['date'],
                       waiters: waitersList,
@@ -163,6 +163,7 @@ class _AdminScreenState extends State<AdminScreen> {
             child: Padding(
               padding: const EdgeInsets.only(top: 32, left: 58, right: 20),
               child: Column(
+                spacing: 16,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextButton.icon(
