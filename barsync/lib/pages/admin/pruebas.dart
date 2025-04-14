@@ -34,14 +34,14 @@ class _AdminScreenState extends State<AdminScreen> {
             waiterRefs.whereType<DocumentReference>().map((ref) async {
               final snap = await ref.get();
               final userData = snap.data() as Map<String, dynamic>;
-              return UserModel.fromJson(userData, snap.id);
+              return UserModel.fromJson(userData);
             }).toList();
 
         List<Future<UserModel>> cookerFutures =
             cookerRefs.whereType<DocumentReference>().map((ref) async {
               final snap = await ref.get();
               final userData = snap.data() as Map<String, dynamic>;
-              return UserModel.fromJson(userData, snap.id);
+              return UserModel.fromJson(userData);
             }).toList();
 
         // Esperar todas las cargas de usuarios en paralelo
@@ -50,7 +50,6 @@ class _AdminScreenState extends State<AdminScreen> {
 
         fetchedRestaurantes.add(
           RestaurantModel(
-            id: doc.id,
             name: data['name'],
             state: data['state'],
             address: data['address'],

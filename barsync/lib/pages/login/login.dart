@@ -5,7 +5,7 @@ import 'package:barsync/pages/boss/bossRes.dart';
 import 'package:barsync/pages/kitchen/kitchen.dart';
 import 'package:barsync/pages/waiter/rooms.dart';
 import 'package:barsync/services/auth/auth.dart';
-import 'package:barsync/services/database/databaseManager.dart';
+import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 

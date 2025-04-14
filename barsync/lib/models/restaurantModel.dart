@@ -2,7 +2,7 @@ import 'package:barsync/models/userModel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RestaurantModel {
-  String id;
+  String id = '';
   String name;
   Timestamp date;
   bool state;
@@ -14,7 +14,6 @@ class RestaurantModel {
   List<UserModel> cookers;
 
   RestaurantModel({
-    required this.id,
     required this.name,
     required this.date,
     required this.state,
@@ -29,6 +28,7 @@ class RestaurantModel {
   // Convertir objeto a JSON (para Firebase)
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'name': name,
       'emailBoss': emailBoss,
       'date': date,
@@ -42,9 +42,8 @@ class RestaurantModel {
   }
 
   // Crear objeto desde JSON (desde Firebase)
-  factory RestaurantModel.fromJson(Map<String, dynamic> json, String id) {
+  factory RestaurantModel.fromJson(Map<String, dynamic> json) {
     return RestaurantModel(
-      id: id,
       name: json['name'],
       state: json['state'],
       address: json['address'],
@@ -71,12 +70,8 @@ class RestaurantModel {
   }
 
   // Crear objeto desde JSON (desde Firebase)
-  factory RestaurantModel.fromJsonWithoutUsers(
-    Map<String, dynamic> json,
-    String id,
-  ) {
+  factory RestaurantModel.fromJsonWithoutUsers(Map<String, dynamic> json) {
     return RestaurantModel(
-      id: id,
       name: json['name'],
       state: json['state'],
       address: json['address'],
@@ -85,10 +80,5 @@ class RestaurantModel {
       password: json['password'],
       date: json['date'],
     );
-  }
-
-  // Método para convertir un RestaurantModel en un Map
-  Map<String, dynamic> toMap() {
-    return {'id': id, 'name': name, 'state': state};
   }
 }

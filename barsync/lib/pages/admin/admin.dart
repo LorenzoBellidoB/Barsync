@@ -50,9 +50,7 @@ class _AdminScreenState extends State<AdminScreen> {
                         var userDoc = await ref.get();
                         if (userDoc.exists) {
                           var userData = userDoc.data() as Map<String, dynamic>;
-                          waitersList.add(
-                            UserModel.fromJson(userData, userDoc.id),
-                          );
+                          waitersList.add(UserModel.fromJson(userData));
                         } else {
                           print('Waiter no encontrado: ${ref.id}');
                         }
@@ -70,9 +68,7 @@ class _AdminScreenState extends State<AdminScreen> {
                         var userDoc = await ref.get();
                         if (userDoc.exists) {
                           var userData = userDoc.data() as Map<String, dynamic>;
-                          cookersList.add(
-                            UserModel.fromJson(userData, userDoc.id),
-                          );
+                          cookersList.add(UserModel.fromJson(userData));
                         } else {
                           print('Cooker no encontrado: ${ref.id}');
                         }
@@ -86,7 +82,6 @@ class _AdminScreenState extends State<AdminScreen> {
                 try {
                   fetchedRestaurantes.add(
                     RestaurantModel(
-                      id: doc.id,
                       name: data['name'],
                       state: data['state'],
                       address: data['address'],

@@ -1,6 +1,7 @@
 import 'package:barsync/models/restaurantModel.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // Users
 Future<void> saveUser(UserModel user) async {
@@ -12,15 +13,30 @@ Future<void> saveUser(UserModel user) async {
   await docRef.update({'id': docRef.id});
 }
 
+Future<void> saveUserWithRestaurant(
+  UserModel user,
+  DocumentReference restaurante,
+) async {
+  final firestore = FirebaseFirestore.instance;
+
+  final userData = user.toJson()..remove('id');
+
+  final docRef = await firestore.collection('users').add(userData);
+
+  // Actualiza Firestore
+  await docRef.update({'id': docRef.id, 'restaurant': restaurante});
+
+  // ✅ Actualiza el objeto local
+  user.id = docRef.id;
+}
+
 Stream<List<UserModel>> getUsers() {
   return FirebaseFirestore.instance
       .collection('users')
       .snapshots()
       .map(
         (snapshot) =>
-            snapshot.docs
-                .map((doc) => UserModel.fromJson(doc.data(), doc.id))
-                .toList(),
+            snapshot.docs.map((doc) => UserModel.fromJson(doc.data())).toList(),
       );
 }
 
@@ -31,10 +47,27 @@ Stream<List<UserModel>> getUsersByEmail(String email) {
       .snapshots()
       .map(
         (snapshot) =>
-            snapshot.docs
-                .map((doc) => UserModel.fromJson(doc.data(), doc.id))
-                .toList(),
+            snapshot.docs.map((doc) => UserModel.fromJson(doc.data())).toList(),
       );
+}
+
+Future<List<UserModel>> getUsersByRestaurantAndRole(
+  String idRestaurante,
+  String rol,
+) async {
+  try {
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('usuarios')
+            .where('idRestaurante', isEqualTo: idRestaurante)
+            .where('rol', isEqualTo: rol)
+            .get();
+
+    return snapshot.docs.map((doc) => UserModel.fromJson(doc.data())).toList();
+  } catch (e) {
+    print("Error al obtener usuarios: $e");
+    return [];
+  }
 }
 
 // Restaurants
@@ -45,7 +78,7 @@ Stream<List<RestaurantModel>> getRestaurants() {
       .map(
         (snapshot) =>
             snapshot.docs
-                .map((doc) => RestaurantModel.fromJson(doc.data(), doc.id))
+                .map((doc) => RestaurantModel.fromJson(doc.data()))
                 .toList(),
       );
 }
@@ -58,16 +91,69 @@ Stream<List<RestaurantModel>> getRestaurantByEmail(String email) {
       .map(
         (snapshot) =>
             snapshot.docs
-                .map((doc) => RestaurantModel.fromJson(doc.data(), doc.id))
+                .map((doc) => RestaurantModel.fromJson(doc.data()))
                 .toList(),
       );
 }
 
-Future<void> saveRestaurant(RestaurantModel restaurant) async {
-  final docRef = await FirebaseFirestore.instance
-      .collection('restaurants')
-      .add(restaurant.toJson());
+Future<String> saveRestaurant(RestaurantModel restaurant) async {
+  try {
+    final docRef = FirebaseFirestore.instance.collection('restaurants').doc();
+    restaurant.id = docRef.id; // Asignamos el ID al modelo
+    await docRef.set(restaurant.toJson());
+    return docRef.id;
+  } catch (e) {
+    print("Error al guardar restaurante: $e");
+    rethrow;
+  }
+}
 
-  // Si quieres actualizar el mismo documento para guardar el id dentro
-  await docRef.update({'id': docRef.id});
+Future<void> updateUsersRestaurant(
+  DocumentReference idRestaurante,
+  List<UserModel> users,
+) async {
+  final firestore = FirebaseFirestore.instance;
+  try {
+    final restaurantDoc = idRestaurante;
+    print("Referencia restaurante: $restaurantDoc");
+
+    List<DocumentReference> camareroRefs = [];
+    List<DocumentReference> cocineroRefs = [];
+
+    for (UserModel user in users) {
+      final userId = user.id?.trim();
+
+      if (userId == null || userId.isEmpty) {
+        print('❌ Usuario sin ID válido: ${user.toJson()}');
+        continue; // Saltamos este usuario
+      }
+
+      final userRef = firestore.collection('users').doc(userId);
+      final rol = user.rol.trim().toLowerCase();
+
+      if (rol == 'waiter') {
+        camareroRefs.add(userRef);
+      } else if (rol == 'cooker') {
+        cocineroRefs.add(userRef);
+      } else {
+        print('⚠️ Rol desconocido: $rol');
+      }
+    }
+
+    // Opcional: Asegurarse de que los campos existen
+    await restaurantDoc.set({
+      'waiters': [],
+      'cookers': [],
+    }, SetOptions(merge: true));
+
+    // Actualizamos el restaurante con las referencias a los usuarios
+    await restaurantDoc.update({
+      'waiters': FieldValue.arrayUnion(camareroRefs),
+      'cookers': FieldValue.arrayUnion(cocineroRefs),
+    });
+
+    print('Referencias de usuarios añadidas al restaurante correctamente.');
+  } catch (e) {
+    print('Error al actualizar el restaurante: $e');
+  }
 }
