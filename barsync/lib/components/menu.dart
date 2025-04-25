@@ -1,3 +1,4 @@
+import 'package:barsync/pages/admin/admin.dart';
 import 'package:flutter/material.dart';
 
 class Menu extends StatelessWidget {
@@ -23,7 +24,14 @@ class Menu extends StatelessWidget {
               contentPadding:
                   EdgeInsets.zero, // Elimina el padding predeterminado
               title: TextButton.icon(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminScreen(),
+                    ),
+                  );
+                },
                 icon: Icon(
                   Icons.restaurant,
                   color: Color.fromRGBO(104, 104, 155, 1),
@@ -41,28 +49,28 @@ class Menu extends StatelessWidget {
                 ),
               ),
             ),
-            ListTile(
-              contentPadding:
-                  EdgeInsets.zero, // Elimina el padding predeterminado
-              title: TextButton.icon(
-                onPressed: () {},
-                icon: Icon(
-                  Icons.person,
-                  color: Color.fromRGBO(104, 104, 155, 1),
-                ),
-                label: Text(
-                  'Administración de Usuarios',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ), // Asegura que el texto sea blanco
-                ),
-                style: TextButton.styleFrom(
-                  alignment:
-                      Alignment.centerLeft, // Alinea el botón a la izquierda
-                ),
-              ),
-            ),
+            // ListTile(
+            //   contentPadding:
+            //       EdgeInsets.zero, // Elimina el padding predeterminado
+            //   title: TextButton.icon(
+            //     onPressed: () {},
+            //     icon: Icon(
+            //       Icons.person,
+            //       color: Color.fromRGBO(104, 104, 155, 1),
+            //     ),
+            //     label: Text(
+            //       'Administración de Usuarios',
+            //       style: TextStyle(
+            //         color: Colors.white,
+            //         fontSize: 16,
+            //       ), // Asegura que el texto sea blanco
+            //     ),
+            //     style: TextButton.styleFrom(
+            //       alignment:
+            //           Alignment.centerLeft, // Alinea el botón a la izquierda
+            //     ),
+            //   ),
+            // ),
           ] else if (role == 'Boss') ...[
             ListTile(
               contentPadding:
@@ -92,11 +100,33 @@ class Menu extends StatelessWidget {
               title: TextButton.icon(
                 onPressed: () {},
                 icon: Icon(
-                  Icons.person,
+                  Icons.table_bar,
                   color: Color.fromRGBO(104, 104, 155, 1),
                 ),
                 label: Text(
                   'Mesas',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ), // Asegura que el texto sea blanco
+                ),
+                style: TextButton.styleFrom(
+                  alignment:
+                      Alignment.centerLeft, // Alinea el botón a la izquierda
+                ),
+              ),
+            ),
+            ListTile(
+              contentPadding:
+                  EdgeInsets.zero, // Elimina el padding predeterminado
+              title: TextButton.icon(
+                onPressed: () {},
+                icon: Icon(
+                  Icons.person,
+                  color: Color.fromRGBO(104, 104, 155, 1),
+                ),
+                label: Text(
+                  'Administración de Usuarios',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,

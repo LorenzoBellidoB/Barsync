@@ -1,7 +1,7 @@
 import 'package:barsync/components/alert.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:barsync/pages/admin/admin.dart';
-import 'package:barsync/pages/boss/bossRes.dart';
+import 'package:barsync/pages/boss/bossRest.dart';
 import 'package:barsync/pages/kitchen/kitchen.dart';
 import 'package:barsync/pages/waiter/rooms.dart';
 import 'package:barsync/services/auth/auth.dart';
@@ -56,9 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         } else {
           // Obtener datos del usuario desde Firestore
-          List<UserModel> users = await getUsersByEmail(
-            email,
-          ).firstWhere((users) => users.isNotEmpty, orElse: () => []);
+          List<UserModel> users = await getUsersByEmail(email).first;
 
           if (users.isNotEmpty) {
             UserModel userModel = users.first;

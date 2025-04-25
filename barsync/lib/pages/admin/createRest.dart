@@ -2,6 +2,7 @@ import 'package:barsync/components/alert.dart';
 import 'package:barsync/components/menu.dart';
 import 'package:barsync/models/restaurantModel.dart';
 import 'package:barsync/models/userModel.dart';
+import 'package:barsync/pages/admin/admin.dart';
 import 'package:barsync/pages/login/login.dart';
 import 'package:barsync/services/auth/auth.dart';
 import 'package:barsync/services/database/dataBaseManager.dart'
@@ -61,6 +62,18 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     });
   }
 
+  bool validateFields() {
+    for (var key in restauranteControllers.keys) {
+      if (restauranteControllers[key]!.text.isEmpty) {
+        return false;
+      }
+    }
+
+    if (estadoSeleccionado == null) return false;
+
+    return true;
+  }
+
   void createRestaurant() async {
     RestaurantModel restaurant = new RestaurantModel(
       name: restauranteControllers['nombre']!.text,
@@ -83,6 +96,13 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
           .doc(idRestaurante);
       // Crear camareros y cocineros del restaurante
       createWaitersCookers(restaurantDoc);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Restaurante y usuarios creados correctamente."),
+          backgroundColor: Colors.green,
+        ),
+      );
+
       // Guardar los camareros y cocineros en el restaurante
     } catch (e) {
       print(e);
@@ -248,8 +268,8 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                               onChanged: (value) {
                                 setState(() {
                                   estadoSeleccionado = value;
-                                  restauranteControllers['status']!.text =
-                                      value ?? '';
+                                  //restauranteControllers['status']!.text =
+                                  //value ?? '';
                                 });
                               },
                             ),
@@ -382,8 +402,27 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                   children: [
                     ElevatedButton.icon(
                       onPressed: () {
+                        if (!validateFields()) {
+                          showDialog(
+                            context: context,
+                            builder:
+                                (_) => CustomAlertDialog(
+                                  title: 'Campos incompletos',
+                                  message:
+                                      'Completa todos los campos antes de continuar.',
+                                  buttonText: 'Aceptar',
+                                  colorbg: Colors.black,
+                                  icon: Icons.warning,
+                                  textColor: Colors.white,
+                                  buttonColor: Colors.orange,
+                                ),
+                          );
+                          return;
+                        }
+
                         createRestaurant();
                       },
+
                       icon: Icon(Icons.add),
                       label: Text('Crear'),
                       style: ElevatedButton.styleFrom(
@@ -396,6 +435,12 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                         setState(() {
                           camareros.clear();
                           cocineros.clear();
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AdminScreen(),
+                            ),
+                          );
                         });
                       },
                       icon: Icon(Icons.cancel),

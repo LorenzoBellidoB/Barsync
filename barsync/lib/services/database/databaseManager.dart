@@ -1,33 +1,27 @@
+import 'package:barsync/models/categoryModel.dart';
 import 'package:barsync/models/restaurantModel.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 // Users
 Future<void> saveUser(UserModel user) async {
-  final docRef = await FirebaseFirestore.instance
-      .collection('users')
-      .add(user.toJson());
+  if (user.email.isEmpty || user.password.isEmpty || user.rol.isEmpty) {
+    throw Exception('Email, contraseña y rol son obligatorios.');
+  }
 
-  // Para obtener el id automatico de firebase
-  await docRef.update({'id': docRef.id});
+  await FirebaseFirestore.instance.collection('users').add(user.toJson());
 }
 
 Future<void> saveUserWithRestaurant(
   UserModel user,
-  DocumentReference restaurante,
+  DocumentReference restaurantRef,
 ) async {
-  final firestore = FirebaseFirestore.instance;
+  user.idRestaurante = restaurantRef.id;
 
-  final userData = user.toJson()..remove('id');
+  final userRef = FirebaseFirestore.instance.collection('users').doc();
+  user.id = userRef.id;
 
-  final docRef = await firestore.collection('users').add(userData);
-
-  // Actualiza Firestore
-  await docRef.update({'id': docRef.id, 'restaurant': restaurante});
-
-  // ✅ Actualiza el objeto local
-  user.id = docRef.id;
+  await userRef.set(user.toJson());
 }
 
 Stream<List<UserModel>> getUsers() {
@@ -155,5 +149,57 @@ Future<void> updateUsersRestaurant(
     print('Referencias de usuarios añadidas al restaurante correctamente.');
   } catch (e) {
     print('Error al actualizar el restaurante: $e');
+  }
+}
+
+// Categoria
+
+Future<void> addCategory(CategoryModel category) async {
+  try {
+    final categoryData = {
+      'name': category.name,
+      'description': category.description,
+      'image': category.image,
+      'restaurant': FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(category.idRestaurant),
+      'products': [], // inicial vacío
+    };
+
+    // Añadir la categoría
+    final docRef = await FirebaseFirestore.instance
+        .collection('categories')
+        .add(categoryData);
+
+    // Actualizar el mismo documento con su propio ID
+    await docRef.update({'id': docRef.id});
+
+    print('✅ Categoría añadida con ID: ${docRef.id}');
+  } catch (e) {
+    print('❌ Error al añadir categoría: $e');
+    rethrow;
+  }
+}
+
+Future<CategoryModel?> getCategoryById(String categoryId) async {
+  try {
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('categories')
+            .doc(categoryId)
+            .get();
+
+    if (!doc.exists) {
+      print('❗ Categoría no encontrada');
+      return null;
+    }
+
+    final data = doc.data()!;
+    final category = CategoryModel.fromJson(data)..id = doc.id;
+
+    return category;
+  } catch (e) {
+    print('❌ Error al obtener categoría por ID: $e');
+    rethrow;
   }
 }
