@@ -7,7 +7,7 @@ class UserModel {
   String email;
   String password;
   Timestamp register_date;
-  String idRestaurante = '';
+  DocumentReference<Object?> idRestaurante;
 
   UserModel({
     required this.id,
@@ -16,6 +16,7 @@ class UserModel {
     required this.email,
     required this.password,
     required this.register_date,
+    required this.idRestaurante,
   });
 
   // Convertir objeto a JSON (para Firebase)
@@ -42,15 +43,28 @@ class UserModel {
   //   );
   // }
 
-  // Crear objeto desde JSON (desde Firebase)
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final rawRef = json['idRestaurante'];
+
+    if (rawRef == null || rawRef is! DocumentReference) {
+      print("❌ idRestaurante inválido: $rawRef");
+    } else {
+      print("✅ idRestaurante correcto: $rawRef");
+    }
+
     return UserModel(
-      id: json['id'],
-      name: json['name'],
-      rol: json['rol'],
-      email: json['email'],
-      password: json['password'],
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      rol: json['rol'] ?? '',
+      email: json['email'] ?? '',
+      password: json['password'] ?? '',
       register_date: json['register_date'],
+      idRestaurante:
+          rawRef is DocumentReference
+              ? rawRef
+              : FirebaseFirestore.instance.doc(
+                '/restaurants/fallback',
+              ), // fallback temporal
     );
   }
 }

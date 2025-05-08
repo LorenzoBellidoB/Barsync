@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class Menu extends StatelessWidget {
   final String role;
 
-  const Menu({required this.role});
+  const Menu({super.key, required this.role});
 
   @override
   Widget build(BuildContext context) {

@@ -1,0 +1,125 @@
+import 'package:barsync/models/categoryModel.dart';
+import 'package:barsync/services/database/dataBaseManager.dart'
+    as dataBaseManager;
+import 'package:barsync/utils/sesion.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
+class CreateCategory extends StatefulWidget {
+  final VoidCallback onClose;
+
+  const CreateCategory({Key? key, required this.onClose}) : super(key: key);
+
+  @override
+  _CreateCategoryState createState() => _CreateCategoryState();
+}
+
+class _CreateCategoryState extends State<CreateCategory> {
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
+  String? _imageUrl; // Puedes usar esto si implementas carga de imagen
+
+  bool _isSaving = false;
+
+  void _createCategory() async {
+    if (nameController.text.trim().isEmpty) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      CategoryModel categoria = new CategoryModel(
+        name: nameController.text,
+        description: descriptionController.text,
+        image: '',
+        idRestaurant: Session().restaurantRef,
+      );
+      await dataBaseManager.addCategory(categoria);
+
+      widget.onClose();
+    } catch (e) {
+      print("Error al crear categoría: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al crear categoría')));
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Container(
+        width: 400,
+        height: double.infinity,
+        padding: EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            left: BorderSide(color: Colors.grey.shade300, width: 2),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Crear Categoría',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                IconButton(icon: Icon(Icons.close), onPressed: widget.onClose),
+              ],
+            ),
+            SizedBox(height: 24),
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: 'Nombre Categoría',
+                filled: true,
+                fillColor: Colors.grey.shade200,
+              ),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: descriptionController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'Descripción (opcional)',
+                filled: true,
+                fillColor: Colors.grey.shade200,
+              ),
+            ),
+            SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              height: 100,
+              color: Colors.grey.shade100,
+              child: Center(
+                child: Text(
+                  'IMAGEN',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            Spacer(),
+            ElevatedButton(
+              onPressed: _isSaving ? null : _createCategory,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                minimumSize: Size(double.infinity, 48),
+              ),
+              child: Text('Crear', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -6,6 +6,7 @@ import 'package:barsync/pages/kitchen/kitchen.dart';
 import 'package:barsync/pages/waiter/rooms.dart';
 import 'package:barsync/services/auth/auth.dart';
 import 'package:barsync/services/database/dataBaseManager.dart';
+import 'package:barsync/utils/sesion.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -21,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
   String rol = "";
 
-  void _login() async {
+  void login() async {
     String email = emailController.text;
     String password = passwordController.text;
     print("Email: $email, Contraseña: $password");
@@ -60,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
           if (users.isNotEmpty) {
             UserModel userModel = users.first;
-            print("Usuario logueado: ${userModel.email} - ${userModel.rol}");
+            print("Usuario logueado: ${userModel.email} - ${userModel.rol} ");
 
             rol = userModel.rol;
             switch (rol.toLowerCase()) {
@@ -132,6 +133,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         textColor: Colors.white,
                         buttonColor: Colors.blueAccent,
                         onConfirm: () {
+                          print(userModel.idRestaurante);
+                          print(userModel.toJson());
+                          Session().setRestaurant(userModel.idRestaurante);
+                          print(Session().idRestaurant);
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
@@ -266,88 +271,83 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildLoginForm() {
     return ClipRect(
-      // Da error con el minmap al cambiar de pantalla
-      // child: BackdropFilter(
-      //   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
       child: Container(
         color: Color.fromRGBO(23, 23, 34, 0.8),
-        padding: EdgeInsets.all(40.0),
-        width: 350, // Ajuste para que no ocupe toda la pantalla en móviles
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Column(
-              mainAxisSize: MainAxisSize.min, // Se ajusta al contenido
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Image.asset(
-                  'assets/icons/barSyncApp.png', // Ruta del icono
-                  width: 34, // Ajusta el tamaño
-                  height: 34,
-                ),
-                SizedBox(width: 8), // Espacio entre icono y texto
-                Text(
-                  'Bienvenido a',
-                  style: TextStyle(fontSize: 18, color: Colors.white70),
-                ),
-              ],
-            ),
-
-            Text(
-              'BarSync',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+        padding: EdgeInsets.all(30.0),
+        width: 350,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                // icono + texto horizontal
+                children: [
+                  Image.asset(
+                    'assets/icons/barSyncApp.png',
+                    width: 34,
+                    height: 34,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Bienvenido a',
+                    style: TextStyle(fontSize: 18, color: Colors.white70),
+                  ),
+                ],
               ),
-            ),
-            SizedBox(height: 30),
-            _buildTextField(
-              label: 'Email',
-              icon: Icons.mail,
-              obscure: false,
-              controller: emailController,
-            ),
-            SizedBox(height: 20),
-            _buildTextField(
-              label: 'Contraseña',
-              icon: Icons.lock,
-              obscure: true,
-              controller: passwordController,
-            ),
-            SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: TextButton(
-                    onPressed: () {},
-                    child: Text(
-                      '¿Olvidaste tu contraseña?',
-                      style: TextStyle(color: Colors.blue),
-                      overflow: TextOverflow.ellipsis, // Evita desbordamiento
+              Text(
+                'BarSync',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 30),
+              _buildTextField(
+                label: 'Email',
+                icon: Icons.mail,
+                obscure: false,
+                controller: emailController,
+              ),
+              SizedBox(height: 20),
+              _buildTextField(
+                label: 'Contraseña',
+                icon: Icons.lock,
+                obscure: true,
+                controller: passwordController,
+              ),
+              SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: TextButton(
+                      onPressed: () {},
+                      child: Text(
+                        '¿Olvidaste tu contraseña?',
+                        style: TextStyle(color: Colors.blue),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _login,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text('Iniciar sesión'),
+                ],
               ),
-            ),
-          ],
+              SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text('Iniciar sesión'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      // ),
     );
   }
 

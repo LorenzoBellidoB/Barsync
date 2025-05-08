@@ -75,7 +75,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
   }
 
   void createRestaurant() async {
-    RestaurantModel restaurant = new RestaurantModel(
+    RestaurantModel restaurant = RestaurantModel(
       name: restauranteControllers['nombre']!.text,
       date: Timestamp.now(),
       state: estadoSeleccionado == 'Activo' ? true : false,
@@ -91,7 +91,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
       print('Restaurante');
       print(restaurant.toJson());
       // Obtengo la referencia al restaurante
-      final restaurantDoc = await firestore
+      final restaurantDoc = firestore
           .collection('restaurants')
           .doc(idRestaurante);
       // Crear camareros y cocineros del restaurante
@@ -121,6 +121,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
         password: c['password']!.text,
         rol: c['rol']!.text,
         register_date: Timestamp.now(),
+        idRestaurante: id,
       );
 
       try {
@@ -141,6 +142,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
         password: c['password']!.text,
         rol: c['rol']!.text,
         register_date: Timestamp.now(),
+        idRestaurante: id,
       );
 
       try {
@@ -200,6 +202,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 0,
         title: Row(
           children: [
             Image.asset('assets/icons/barSyncApp.png', width: 30, height: 30),

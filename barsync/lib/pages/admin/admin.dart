@@ -130,6 +130,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 0,
         title: Row(
           children: [
             Image.asset('assets/icons/barSyncApp.png', width: 30, height: 30),
@@ -157,84 +158,81 @@ class _AdminScreenState extends State<AdminScreen> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(top: 32, left: 58, right: 20),
-              child: Column(
-                spacing: 16,
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: ListView(
                 children: [
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CreateRestScreen(),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CreateRestScreen(),
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.add, color: Colors.white),
+                      label: Text(
+                        'Crear Restaurante',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Color.fromRGBO(23, 23, 34, 1),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
-                      );
-                    },
-                    icon: Icon(Icons.add, color: Colors.white),
-                    label: Text(
-                      'Crear Restaurante',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    style: TextButton.styleFrom(
-                      backgroundColor: Color.fromRGBO(23, 23, 34, 1),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                   ),
-                  Expanded(
-                    child:
-                        restaurantes.isEmpty
-                            ? Center(child: CircularProgressIndicator())
-                            : DataTable(
-                              headingRowColor: WidgetStateProperty.all(
-                                Color.fromRGBO(23, 23, 34, 1),
-                              ),
-                              dataRowColor: WidgetStateProperty.all(
-                                Color.fromRGBO(230, 230, 230, 1),
-                              ),
-                              headingTextStyle: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              columns: const [
-                                DataColumn(label: Text('Nombre')),
-                                DataColumn(label: Text('Status')),
-                                DataColumn(label: Text('Acciones')),
-                              ],
-                              rows:
-                                  restaurantes.map((rest) {
-                                    return DataRow(
-                                      cells: [
-                                        DataCell(
-                                          Container(
-                                            width: 500,
-                                            child: Text(rest.name),
-                                          ),
-                                        ),
-                                        DataCell(
-                                          Text(
-                                            rest.state ? 'Activo' : 'Inactivo',
-                                          ),
-                                        ),
-                                        DataCell(
-                                          Row(
-                                            children: [
-                                              iconButton(Icons.edit, () {}),
-                                              SizedBox(width: 8),
-                                              iconButton(Icons.delete, () {}),
-                                            ],
-                                          ),
-                                        ),
+                  SizedBox(height: 16),
+                  restaurantes.isEmpty
+                      ? Center(child: CircularProgressIndicator())
+                      : DataTable(
+                        headingRowColor: WidgetStateProperty.all(
+                          Color.fromRGBO(23, 23, 34, 1),
+                        ),
+                        dataRowColor: WidgetStateProperty.all(
+                          Color.fromRGBO(230, 230, 230, 1),
+                        ),
+                        headingTextStyle: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        columns: const [
+                          DataColumn(label: Text('Nombre')),
+                          DataColumn(label: Text('Status')),
+                          DataColumn(label: Text('Acciones')),
+                        ],
+                        rows:
+                            restaurantes.map((rest) {
+                              return DataRow(
+                                cells: [
+                                  DataCell(
+                                    SizedBox(
+                                      width: 500,
+                                      child: Text(rest.name),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(rest.state ? 'Activo' : 'Inactivo'),
+                                  ),
+                                  DataCell(
+                                    Row(
+                                      children: [
+                                        iconButton(Icons.edit, () {}),
+                                        SizedBox(width: 8),
+                                        iconButton(Icons.delete, () {}),
                                       ],
-                                    );
-                                  }).toList(),
-                            ),
-                  ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                      ),
                 ],
               ),
             ),

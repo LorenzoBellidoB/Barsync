@@ -1,14 +1,18 @@
 import 'dart:async';
 
 import 'package:barsync/components/alert.dart';
+import 'package:barsync/components/createCategory.dart';
 import 'package:barsync/components/menu.dart';
 import 'package:barsync/models/categoryModel.dart';
 import 'package:barsync/models/productModel.dart';
 import 'package:barsync/pages/boss/createProduct.dart';
+import 'package:barsync/pages/boss/editProduct.dart';
 import 'package:barsync/pages/login/login.dart';
 import 'package:barsync/services/auth/auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:barsync/services/database/dataBaseManager.dart'
+    as databaseManager;
 
 class BossScreen extends StatefulWidget {
   const BossScreen({super.key});
@@ -21,13 +25,16 @@ class _BossScreenState extends State<BossScreen> {
   List<CategoryModel> categorias = [];
   StreamSubscription? _categorySubscription;
 
+  // Para cuando se expande las categorias
+  Set<String> expandedCategories = {};
+
   @override
   void initState() {
     super.initState();
-    _listenToRestaurants();
+    listenToRestaurants();
   }
 
-  void _listenToRestaurants() {
+  void listenToRestaurants() {
     _categorySubscription = FirebaseFirestore.instance
         .collection('categories')
         .snapshots()
@@ -42,20 +49,23 @@ class _BossScreenState extends State<BossScreen> {
                 List<ProductModel> productsList = [];
 
                 if (data['products'] != null && data['products'] is List) {
-                  for (var ref in data['products']) {
-                    if (ref is DocumentReference) {
-                      try {
-                        var productDoc = await ref.get();
+                  for (var ref in (data['products'] as List<dynamic>)) {
+                    try {
+                      // Validar que sea un DocumentReference directamente
+                      if (ref is DocumentReference) {
+                        final productDoc = await ref.get();
                         if (productDoc.exists) {
-                          var productData =
+                          final productData =
                               productDoc.data() as Map<String, dynamic>;
                           productsList.add(ProductModel.fromJson(productData));
                         } else {
-                          print('Product no encontrado: ${ref.id}');
+                          print('Producto no encontrado: ${ref.id}');
                         }
-                      } catch (e) {
-                        print('Error obteniendo product ${ref.id}: $e');
+                      } else {
+                        print('Referencia de producto no válida: $ref');
                       }
+                    } catch (e) {
+                      print('Error procesando producto: $e');
                     }
                   }
                 }
@@ -63,12 +73,12 @@ class _BossScreenState extends State<BossScreen> {
                 try {
                   fetchedCategorias.add(
                     CategoryModel(
+                      id: doc.id,
                       name: data['name'],
                       description: data['description'],
                       image: data['image'],
                       products: productsList,
-                      idRestaurant:
-                          (data['restaurant'] as DocumentReference).id,
+                      idRestaurant: (data['restaurant'] as DocumentReference),
                     ),
                   );
                 } catch (e) {
@@ -102,9 +112,11 @@ class _BossScreenState extends State<BossScreen> {
     super.dispose();
   }
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 0,
         title: Row(
           children: [
             Image.asset('assets/icons/barSyncApp.png', width: 30, height: 30),
@@ -129,113 +141,366 @@ class _BossScreenState extends State<BossScreen> {
       body: Row(
         children: [
           Menu(role: 'Boss'),
+
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(top: 32, left: 58, right: 58),
               child: ListView(
+                padding: EdgeInsets.only(bottom: 100),
                 children: [
-                  Text(
-                    'Crear Jefe',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: true,
+                          builder: (context) {
+                            return Dialog(
+                              backgroundColor: Colors.transparent,
+                              insetPadding: EdgeInsets.zero,
+                              child: CreateCategory(
+                                onClose: () => Navigator.of(context).pop(),
+                              ),
+                            );
+                          },
+                        );
+                      },
+
+                      icon: Icon(Icons.add, color: Colors.white),
+                      label: Text(
+                        'Crear Categoría',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Color.fromRGBO(23, 23, 34, 1),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
                   ),
-                  Divider(),
+                  SizedBox(height: 20),
                   categorias.isEmpty
                       ? Center(child: CircularProgressIndicator())
-                      : DataTable(
-                        headingRowColor: WidgetStateProperty.all(
-                          Color.fromRGBO(23, 23, 34, 1),
+                      : Table(
+                        columnWidths: const {
+                          0: FlexColumnWidth(3),
+                          1: FixedColumnWidth(80),
+                          2: FlexColumnWidth(4),
+                          3: FlexColumnWidth(2),
+                        },
+                        border: TableBorder(
+                          horizontalInside: BorderSide(
+                            color: Colors.grey.shade300,
+                          ),
                         ),
-                        dataRowColor: WidgetStateProperty.all(
-                          Color.fromRGBO(230, 230, 230, 1),
-                        ),
-                        headingTextStyle: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        columns: const [
-                          DataColumn(label: Text('Nombre')),
-                          DataColumn(label: Text('Productos')),
-                          DataColumn(label: Text('Descripcion')),
-                          DataColumn(label: Text('Acciones')),
-                        ],
-                        rows:
-                            categorias.map((rest) {
-                              return DataRow(
-                                cells: [
-                                  DataCell(
-                                    Row(
-                                      children: [
-                                        Expanded(child: Text(rest.name)),
-                                        PopupMenuButton<String>(
-                                          icon: Icon(Icons.add, size: 20),
-                                          offset: Offset(0, 25),
-                                          itemBuilder:
-                                              (context) => [
-                                                PopupMenuItem<String>(
-                                                  value: 'add_product',
-                                                  padding: EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 4,
-                                                  ),
-                                                  height: 30,
+                        children: [
+                          // Encabezado
+                          TableRow(
+                            decoration: BoxDecoration(
+                              color: Color.fromRGBO(23, 23, 34, 1),
+                            ),
+                            children: [
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 44.0,
+                                    top: 8.0,
+                                  ),
+                                  child: Text(
+                                    'Nombre',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              TableCell(
+                                verticalAlignment:
+                                    TableCellVerticalAlignment.middle,
+                                child: Center(
+                                  child: Text(
+                                    'Productos',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Text(
+                                    'Descripción',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              TableCell(
+                                verticalAlignment:
+                                    TableCellVerticalAlignment.middle,
+                                child: Center(
+                                  child: Text(
+                                    'Acciones',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
 
-                                                  child: Text(
-                                                    'Añadir Producto',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                          onSelected: (value) {
-                                            if (value == 'add_product') {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder:
-                                                      (_) => CreateProduct(
-                                                        categoryId: rest.id,
-                                                      ),
-                                                ),
-                                              );
-                                            }
+                          // Filas por categoría
+                          for (var categoria in categorias) ...[
+                            TableRow(
+                              decoration: BoxDecoration(
+                                color: Color.fromRGBO(230, 230, 230, 1),
+                              ),
+                              children: [
+                                TableCell(
+                                  verticalAlignment:
+                                      TableCellVerticalAlignment.middle,
+                                  child: Center(
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment
+                                              .center, // Centra el ícono y texto
+                                      children: [
+                                        IconButton(
+                                          icon: Icon(
+                                            expandedCategories.contains(
+                                                  categoria.id,
+                                                )
+                                                ? Icons.expand_less
+                                                : Icons.expand_more,
+                                            size: 20,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              if (expandedCategories.contains(
+                                                categoria.id,
+                                              )) {
+                                                expandedCategories.remove(
+                                                  categoria.id,
+                                                );
+                                              } else {
+                                                expandedCategories.add(
+                                                  categoria.id,
+                                                );
+                                              }
+                                            });
                                           },
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            categoria.name,
+                                            overflow: TextOverflow.ellipsis,
+                                            textAlign:
+                                                TextAlign
+                                                    .center, // Centra el texto
+                                          ),
                                         ),
                                       ],
                                     ),
                                   ),
+                                ),
+                                TableCell(
+                                  verticalAlignment:
+                                      TableCellVerticalAlignment.middle,
+                                  child: Center(
+                                    child: Text(
+                                      categoria.products.length.toString(),
+                                    ),
+                                  ),
+                                ),
+                                TableCell(
+                                  verticalAlignment:
+                                      TableCellVerticalAlignment.middle,
+                                  child: Center(
+                                    child: Text(
+                                      categoria.description.isEmpty
+                                          ? 'Sin descripción'
+                                          : categoria.description,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                                TableCell(
+                                  verticalAlignment:
+                                      TableCellVerticalAlignment.middle,
+                                  child: Center(
+                                    child: iconButton(Icons.delete, () {}),
+                                  ),
+                                ),
+                              ],
+                            ),
 
-                                  DataCell(
-                                    SizedBox(
-                                      width: 50,
+                            if (expandedCategories.contains(categoria.id)) ...[
+                              // Fila: añadir producto
+                              TableRow(
+                                decoration: BoxDecoration(color: Colors.white),
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 48,
+                                      top: 8,
+                                      bottom: 8,
+                                    ),
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (_) => CreateProduct(
+                                                  categoryId: FirebaseFirestore
+                                                      .instance
+                                                      .collection('categories')
+                                                      .doc(categoria.id),
+                                                ),
+                                          ),
+                                        );
+                                      },
                                       child: Text(
-                                        textAlign: TextAlign.center,
-                                        rest.products.length.toString(),
+                                        '+ Añadir Producto',
+                                        style: TextStyle(
+                                          color: Colors.blue.shade700,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                  DataCell(
-                                    SizedBox(
-                                      width: 300,
-                                      child: Text(
-                                        rest.description == ''
-                                            ? 'Sin Descripción'
-                                            : rest.description,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Row(
-                                      children: [
-                                        SizedBox(width: 8),
-                                        iconButton(Icons.delete, () {}),
-                                      ],
-                                    ),
-                                  ),
+                                  SizedBox(),
+                                  SizedBox(),
+                                  SizedBox(),
                                 ],
-                              );
-                            }).toList(),
+                              ),
+
+                              // Filas de productos
+                              for (var producto in categoria.products)
+                                TableRow(
+                                  decoration: BoxDecoration(
+                                    color: Color.fromRGBO(245, 245, 245, 1),
+                                  ),
+                                  children: [
+                                    TableCell(
+                                      verticalAlignment:
+                                          TableCellVerticalAlignment.middle,
+                                      child: Center(
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
+                                          child: Text(
+                                            producto.name,
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    TableCell(
+                                      verticalAlignment:
+                                          TableCellVerticalAlignment.middle,
+                                      child: Center(
+                                        child: Text(
+                                          '',
+                                        ), // Aquí podrías poner algo como cantidad o stock
+                                      ),
+                                    ),
+                                    TableCell(
+                                      verticalAlignment:
+                                          TableCellVerticalAlignment.middle,
+                                      child: Center(
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          child: Text(
+                                            producto.description ?? '',
+                                            overflow: TextOverflow.ellipsis,
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    TableCell(
+                                      verticalAlignment:
+                                          TableCellVerticalAlignment.middle,
+                                      child: Center(
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            iconButton(Icons.edit, () async {
+                                              // Acción de editar
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder:
+                                                      (_) => EditProduct(
+                                                        producto: producto,
+                                                      ),
+                                                ),
+                                              ).then((_) {
+                                                // Esto se llama cuando regresas de la pantalla de edición
+                                                listenToRestaurants();
+                                                setState(() {});
+                                              });
+                                            }),
+
+                                            SizedBox(width: 8),
+                                            iconButton(Icons.delete, () async {
+                                              Future<bool> borrado =
+                                                  databaseManager.deleteProduct(
+                                                    producto,
+                                                  );
+
+                                              if (await borrado) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Producto eliminado correctamente',
+                                                    ),
+                                                  ),
+                                                );
+                                              } else {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Error al eliminar el producto',
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                              listenToRestaurants();
+                                            }),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ],
+                        ],
                       ),
                 ],
               ),

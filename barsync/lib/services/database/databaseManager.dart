@@ -1,4 +1,7 @@
+import 'dart:ffi';
+
 import 'package:barsync/models/categoryModel.dart';
+import 'package:barsync/models/productModel.dart';
 import 'package:barsync/models/restaurantModel.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,7 +19,10 @@ Future<void> saveUserWithRestaurant(
   UserModel user,
   DocumentReference restaurantRef,
 ) async {
-  user.idRestaurante = restaurantRef.id;
+  print(
+    "👀 Guardando usuario con restaurante: ${user.idRestaurante.runtimeType}",
+  );
+  user.idRestaurante = restaurantRef;
 
   final userRef = FirebaseFirestore.instance.collection('users').doc();
   user.id = userRef.id;
@@ -46,13 +52,13 @@ Stream<List<UserModel>> getUsersByEmail(String email) {
 }
 
 Future<List<UserModel>> getUsersByRestaurantAndRole(
-  String idRestaurante,
+  DocumentReference idRestaurante,
   String rol,
 ) async {
   try {
     final snapshot =
         await FirebaseFirestore.instance
-            .collection('usuarios')
+            .collection('users') // <- asegurarse que es 'users'
             .where('idRestaurante', isEqualTo: idRestaurante)
             .where('rol', isEqualTo: rol)
             .get();
@@ -115,7 +121,7 @@ Future<void> updateUsersRestaurant(
     List<DocumentReference> cocineroRefs = [];
 
     for (UserModel user in users) {
-      final userId = user.id?.trim();
+      final userId = user.id.trim();
 
       if (userId == null || userId.isEmpty) {
         print('❌ Usuario sin ID válido: ${user.toJson()}');
@@ -162,7 +168,7 @@ Future<void> addCategory(CategoryModel category) async {
       'image': category.image,
       'restaurant': FirebaseFirestore.instance
           .collection('restaurants')
-          .doc(category.idRestaurant),
+          .doc(category.idRestaurant.id),
       'products': [], // inicial vacío
     };
 
@@ -195,11 +201,58 @@ Future<CategoryModel?> getCategoryById(String categoryId) async {
     }
 
     final data = doc.data()!;
-    final category = CategoryModel.fromJson(data)..id = doc.id;
+    final category = CategoryModel.fromJson(data, doc.id);
 
     return category;
   } catch (e) {
     print('❌ Error al obtener categoría por ID: $e');
     rethrow;
+  }
+}
+
+Future<DocumentReference> addProduct(ProductModel product) async {
+  try {
+    final docRef = FirebaseFirestore.instance.collection('products').doc();
+    product.id = docRef.id; // Asignamos el ID al modelo
+    await docRef.set(product.toJson());
+    return docRef;
+  } catch (e) {
+    print("Error al guardar restaurante: $e");
+    rethrow;
+  }
+}
+
+Future<bool> deleteProduct(ProductModel producto) async {
+  bool res = false;
+  try {
+    final productRef = FirebaseFirestore.instance
+        .collection('products')
+        .doc(producto.id);
+
+    await productRef.delete();
+
+    final categoryRef = producto.idCategory;
+
+    await categoryRef.update({
+      'products': FieldValue.arrayRemove([productRef]),
+    });
+    res = true;
+    return res;
+  } catch (e) {
+    print('Error al eliminar el producto: $e');
+    return res;
+  }
+}
+
+Future<bool> updateProduct(ProductModel producto) async {
+  try {
+    final productRef = FirebaseFirestore.instance
+        .collection('products')
+        .doc(producto.id);
+    await productRef.update(producto.toJson());
+    return true;
+  } catch (e) {
+    print('Error al actualizar producto: $e');
+    return false;
   }
 }

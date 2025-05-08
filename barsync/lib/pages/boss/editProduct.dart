@@ -2,21 +2,19 @@ import 'dart:io';
 import 'package:barsync/models/productModel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-// import 'package:image_picker/image_picker.dart';
-import 'package:barsync/utils/sesion.dart';
 import 'package:barsync/services/database/dataBaseManager.dart'
     as databaseManager;
 
-class CreateProduct extends StatefulWidget {
-  final DocumentReference categoryId;
+class EditProduct extends StatefulWidget {
+  final ProductModel producto;
 
-  const CreateProduct({super.key, required this.categoryId});
+  const EditProduct({super.key, required this.producto});
 
   @override
-  State<CreateProduct> createState() => CreateProductState();
+  State<EditProduct> createState() => EditProductState();
 }
 
-class CreateProductState extends State<CreateProduct> {
+class EditProductState extends State<EditProduct> {
   final _formKey = GlobalKey<FormState>();
   final ScrollController _extrasScrollController = ScrollController();
 
@@ -44,8 +42,28 @@ class CreateProductState extends State<CreateProduct> {
   @override
   void initState() {
     super.initState();
+
+    name = widget.producto.name;
+    _description = widget.producto.description ?? '';
+    _productClass =
+        widget.producto.eatTimes.isNotEmpty
+            ? widget.producto.eatTimes.first
+            : null;
+
+    int i = 0;
     for (var size in sizes.keys) {
-      _priceControllers[size] = TextEditingController();
+      bool isSelected = i < widget.producto.prices.length;
+      sizes[size] = isSelected;
+      _priceControllers[size] = TextEditingController(
+        text: isSelected ? widget.producto.prices[i].toString() : '',
+      );
+      if (isSelected) i++;
+    }
+
+    for (var extra in widget.producto.addOns) {
+      if (extras.containsKey(extra)) {
+        extras[extra] = true;
+      }
     }
   }
 
@@ -90,11 +108,11 @@ class CreateProductState extends State<CreateProduct> {
           key: _formKey,
           child: ListView(
             children: [
-              // Nombre y Descripción en fila
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
+                      initialValue: name,
                       decoration: InputDecoration(labelText: 'Nombre'),
                       onSaved: (v) => name = v ?? '',
                       validator: (v) => v!.isEmpty ? 'Requerido' : null,
@@ -103,29 +121,25 @@ class CreateProductState extends State<CreateProduct> {
                   SizedBox(width: 16),
                   Expanded(
                     child: TextFormField(
+                      initialValue: _description,
                       decoration: InputDecoration(labelText: 'Descripción'),
                       onSaved: (v) => _description = v ?? '',
                     ),
                   ),
                 ],
               ),
-
               SizedBox(height: 16),
-
-              // Clase de producto
               DropdownButtonFormField<String>(
+                value: _productClass,
                 decoration: InputDecoration(labelText: 'Clase de Producto'),
                 items:
                     ['Desayuno', 'Comida', 'Cena', 'Cualquiera']
                         .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                         .toList(),
-                onChanged: (v) => _productClass = v,
+                onChanged: (v) => setState(() => _productClass = v),
                 validator: (v) => v == null ? 'Selecciona una clase' : null,
               ),
-
               SizedBox(height: 24),
-
-              // Sección de tamaños/complementos e imagen
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -192,9 +206,7 @@ class CreateProductState extends State<CreateProduct> {
                                 }).toList(),
                           ),
                         ),
-
                         SizedBox(height: 16),
-
                         Text(
                           'Complementos',
                           style: TextStyle(fontWeight: FontWeight.bold),
@@ -216,11 +228,9 @@ class CreateProductState extends State<CreateProduct> {
                           height: 120,
                           child: Scrollbar(
                             thumbVisibility: true,
-                            controller:
-                                _extrasScrollController, // <-- Pásalo aquí
+                            controller: _extrasScrollController,
                             child: SingleChildScrollView(
-                              controller:
-                                  _extrasScrollController, // <-- Y aquí también
+                              controller: _extrasScrollController,
                               child: Column(
                                 children:
                                     extras.keys.map((ext) {
@@ -243,36 +253,21 @@ class CreateProductState extends State<CreateProduct> {
                       ],
                     ),
                   ),
-
                   SizedBox(width: 16),
-
                   Expanded(
                     flex: 1,
-                    child: GestureDetector(
-                      onTap: () async {
-                        // final picked = await ImagePicker().pickImage(
-                        //   source: ImageSource.gallery,
-                        // );
-                        // if (picked != null) {
-                        //   setState(() => _imageFile = File(picked.path));
-                        // }
-                      },
-                      child: Container(
-                        height: 150,
-                        color: Colors.grey[200],
-                        child:
-                            _imageFile == null
-                                ? Center(child: Text('IMAGEN'))
-                                : Image.file(_imageFile!, fit: BoxFit.cover),
-                      ),
+                    child: Container(
+                      height: 150,
+                      color: Colors.grey[200],
+                      child:
+                          _imageFile == null
+                              ? Center(child: Text('IMAGEN'))
+                              : Image.file(_imageFile!, fit: BoxFit.cover),
                     ),
                   ),
                 ],
               ),
-
               SizedBox(height: 24),
-
-              // Botones
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -287,7 +282,7 @@ class CreateProductState extends State<CreateProduct> {
                   SizedBox(width: 16),
                   ElevatedButton.icon(
                     icon: Icon(Icons.check),
-                    label: Text('Crear'),
+                    label: Text('Guardar'),
                     onPressed: submitForm,
                   ),
                 ],
@@ -313,23 +308,23 @@ class CreateProductState extends State<CreateProduct> {
       final selectedExtras =
           extras.entries.where((e) => e.value).map((e) => e.key).toList();
 
-      ProductModel producto = ProductModel(
+      final updatedProduct = widget.producto.copyWith(
         name: name,
-        idRestaurant: Session().restaurantRef,
-        idCategory: widget.categoryId,
         description: _description,
-        addOns: selectedExtras,
-        eatTimes: _productClass != null ? [_productClass!] : [],
+        eatTimes: [_productClass!],
         prices: prices,
+        addOns: selectedExtras,
       );
 
-      final productRef = await databaseManager.addProduct(producto);
+      final success = await databaseManager.updateProduct(updatedProduct);
 
-      await widget.categoryId.update({
-        'products': FieldValue.arrayUnion([productRef]),
-      });
-
-      Navigator.of(context).pop();
+      if (success) {
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error al actualizar el producto')),
+        );
+      }
     }
   }
 }

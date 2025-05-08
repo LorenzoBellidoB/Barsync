@@ -7,9 +7,10 @@ class CategoryModel {
   String description = '';
   String image = '';
   List<ProductModel> products;
-  String idRestaurant = '';
+  DocumentReference<Object?> idRestaurant;
 
   CategoryModel({
+    this.id = '',
     required this.name,
     required this.description,
     required this.image,
@@ -30,16 +31,14 @@ class CategoryModel {
   }
 
   // Crear objeto desde JSON (desde Firebase)
-  factory CategoryModel.fromJson(Map<String, dynamic> json) {
+  factory CategoryModel.fromJson(Map<String, dynamic> json, String id) {
     return CategoryModel(
+      id: id,
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       image: json['image'] ?? '',
-      products: [], // se asignan luego, no aquí
-      idRestaurant:
-          (json['restaurant'] is DocumentReference)
-              ? (json['restaurant'] as DocumentReference).id
-              : json['restaurant'] ?? '',
+      products: [],
+      idRestaurant: json['restaurant'] as DocumentReference,
     );
   }
 

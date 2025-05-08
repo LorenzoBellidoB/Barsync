@@ -24,7 +24,7 @@ class _AdminScreenState extends State<AdminScreen> {
       List<RestaurantModel> fetchedRestaurantes = [];
 
       for (var doc in snapshot.docs) {
-        var data = doc.data() as Map<String, dynamic>;
+        var data = doc.data();
 
         List<dynamic> waiterRefs = data['waiters'] ?? [];
         List<dynamic> cookerRefs = data['cookers'] ?? [];
@@ -191,7 +191,7 @@ class _AdminScreenState extends State<AdminScreen> {
                                       return DataRow(
                                         cells: [
                                           DataCell(
-                                            Container(
+                                            SizedBox(
                                               width: 500,
                                               child: Text(
                                                 rest.name,
@@ -202,7 +202,7 @@ class _AdminScreenState extends State<AdminScreen> {
                                             ),
                                           ),
                                           DataCell(
-                                            Container(
+                                            SizedBox(
                                               width: 100,
                                               child: Text(
                                                 rest.state
