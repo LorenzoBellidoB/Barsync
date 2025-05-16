@@ -2,8 +2,8 @@ import 'package:barsync/components/alert.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:barsync/pages/admin/admin.dart';
 import 'package:barsync/pages/boss/bossRest.dart';
-import 'package:barsync/pages/kitchen/kitchen.dart';
-import 'package:barsync/pages/waiter/rooms.dart';
+import 'package:barsync/pages/kitchen/ordersPending.dart';
+import 'package:barsync/pages/waiter/waiterScreen.dart';
 import 'package:barsync/services/auth/auth.dart';
 import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:barsync/utils/sesion.dart';
@@ -81,17 +81,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         textColor: Colors.white,
                         buttonColor: Colors.blueAccent,
                         onConfirm: () {
-                          Navigator.pushReplacement(
+                          Session().setRestaurant(userModel.idRestaurante);
+                          Session().setUser(userModel);
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const RoomsScreen(),
+                              builder: (context) => WaiterScreen(),
                             ),
                           );
                         },
                       ),
                 );
                 break;
-              case "kitchen":
+              case "cooker":
                 // Mostrar diálogo exitoso (como ya tenías)
                 showDialog(
                   context: context,
@@ -107,10 +109,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         textColor: Colors.white,
                         buttonColor: Colors.blueAccent,
                         onConfirm: () {
-                          Navigator.pushReplacement(
+                          print(userModel.idRestaurante);
+                          print(userModel.toJson());
+                          Session().setRestaurant(userModel.idRestaurante);
+                          Session().setUser(userModel);
+                          print(Session().idRestaurant);
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const KitchenScreen(),
+                              builder: (context) => const OrdersPending(),
                             ),
                           );
                         },
@@ -136,8 +143,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           print(userModel.idRestaurante);
                           print(userModel.toJson());
                           Session().setRestaurant(userModel.idRestaurante);
+                          Session().setUser(userModel);
                           print(Session().idRestaurant);
-                          Navigator.pushReplacement(
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => const BossScreen(),
@@ -163,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         textColor: Colors.white,
                         buttonColor: Colors.blueAccent,
                         onConfirm: () {
-                          Navigator.pushReplacement(
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => const AdminScreen(),
@@ -177,6 +185,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 print("Rol desconocido: $rol");
                 break;
             }
+            emailController.clear();
+            passwordController.clear();
           } else {
             print("No se encontró ningún usuario con ese email.");
           }

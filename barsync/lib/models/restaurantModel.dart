@@ -1,3 +1,4 @@
+import 'package:barsync/models/tableModel.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -12,8 +13,10 @@ class RestaurantModel {
   String password;
   List<UserModel> waiters;
   List<UserModel> cookers;
+  List<TableModel> tables;
 
   RestaurantModel({
+    this.id = '',
     required this.name,
     required this.date,
     required this.state,
@@ -23,6 +26,7 @@ class RestaurantModel {
     required this.password,
     this.waiters = const [],
     this.cookers = const [],
+    this.tables = const [],
   });
 
   // Convertir objeto a JSON (para Firebase)
@@ -38,6 +42,7 @@ class RestaurantModel {
       'password': password,
       'waiters': waiters,
       'cookers': cookers,
+      'tables': tables,
     };
   }
 
@@ -52,6 +57,7 @@ class RestaurantModel {
       password: json['password'],
       waiters: json['waiters'],
       cookers: json['cookers'],
+      tables: json['tables'],
       date: json['date'],
     );
   }
@@ -66,6 +72,7 @@ class RestaurantModel {
       'address': address,
       'phone': phone,
       'password': password,
+      'tables': tables,
     };
   }
 
@@ -78,6 +85,7 @@ class RestaurantModel {
       phone: json['phone'],
       emailBoss: json['emailBoss'],
       password: json['password'],
+      tables: json['tables'],
       date: json['date'],
     );
   }

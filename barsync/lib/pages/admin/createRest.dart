@@ -3,8 +3,6 @@ import 'package:barsync/components/menu.dart';
 import 'package:barsync/models/restaurantModel.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:barsync/pages/admin/admin.dart';
-import 'package:barsync/pages/login/login.dart';
-import 'package:barsync/services/auth/auth.dart';
 import 'package:barsync/services/database/dataBaseManager.dart'
     as databaseManager;
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -22,6 +20,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     'nombre': TextEditingController(),
     'direccion': TextEditingController(),
     'telefono': TextEditingController(),
+    'nombreJefe': TextEditingController(),
     'email': TextEditingController(),
     'password': TextEditingController(),
   };
@@ -95,7 +94,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
           .collection('restaurants')
           .doc(idRestaurante);
       // Crear camareros y cocineros del restaurante
-      createWaitersCookers(restaurantDoc);
+      createWaitersCookersBoss(restaurantDoc);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Restaurante y usuarios creados correctamente."),
@@ -109,8 +108,26 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     }
   }
 
-  void createWaitersCookers(DocumentReference id) async {
+  void createWaitersCookersBoss(DocumentReference id) async {
     List<UserModel> listUsers = [];
+
+    UserModel boss = UserModel(
+      id: '',
+      name: restauranteControllers['nombreJefe']!.text,
+      rol: 'Boss',
+      email: restauranteControllers['email']!.text,
+      password: restauranteControllers['password']!.text,
+      register_date: Timestamp.now(),
+      idRestaurante: id,
+    );
+    print(boss.toJson());
+    try {
+      await databaseManager.saveUserWithRestaurant(boss, id);
+      print(boss.toJson()); // Ahora sí tendrá el id
+      listUsers.add(boss); // ✅ Se añade con id correcto
+    } catch (e) {
+      print(e);
+    }
 
     print("CAMAREROS:");
     for (var c in camareros) {
@@ -185,7 +202,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     bool obscure = false,
   }) {
     return SizedBox(
-      width: 250,
+      width: 200,
       child: TextField(
         controller: controller,
         obscureText:
@@ -202,27 +219,33 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            Image.asset('assets/icons/barSyncApp.png', width: 30, height: 30),
-            SizedBox(width: 8),
-            Text(
-              'BarSync',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+        elevation: 0,
+        automaticallyImplyLeading:
+            false, // Evita que Flutter reserve espacio para "leading"
+        flexibleSpace: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(left: 20, top: 12),
+            child: Row(
+              children: [
+                Image.asset(
+                  'assets/icons/barSyncApp.png',
+                  width: 30,
+                  height: 30,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'BarSync',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         backgroundColor: Color.fromRGBO(23, 23, 34, 1),
-        elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Container(color: Color.fromRGBO(60, 60, 71, 1), height: 1.5),
-        ),
       ),
       backgroundColor: Colors.grey.shade100,
       body: Row(
@@ -234,7 +257,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                 Padding(
                   padding: const EdgeInsets.only(left: 16, top: 8),
                   child: Text(
-                    'Crear Jefe',
+                    'Crear Restaurante',
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -250,11 +273,11 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                         runSpacing: 20,
                         children: [
                           buildDynamicTextField(
-                            "Nombre",
+                            "Restaurante",
                             restauranteControllers['nombre']!,
                           ),
                           SizedBox(
-                            width: 250,
+                            width: 200,
                             child: DropdownButtonFormField<String>(
                               value: estadoSeleccionado,
                               decoration: InputDecoration(
@@ -285,6 +308,10 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                           buildDynamicTextField(
                             "Teléfono",
                             restauranteControllers['telefono']!,
+                          ),
+                          buildDynamicTextField(
+                            "Nombre Jefe",
+                            restauranteControllers['nombreJefe']!,
                           ),
                           buildDynamicTextField(
                             "Email",
@@ -460,58 +487,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder:
-                (context) => CustomAlertDialog(
-                  title: 'Cerrar Sesión',
-                  message: '¿Está seguro de cerrar sesión?',
-                  buttonText: 'Cerrar Sesión',
-                  colorbg: Color.fromRGBO(23, 23, 34, 1),
-                  buttonColor: Colors.orange,
-                  textColor: Colors.white,
-                  actions: [
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.orange,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text('Cancelar'),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.orange,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text('Cerrar Sesión'),
-                      onPressed: () {
-                        AuthService().signOut();
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-          );
-        },
-        backgroundColor: Colors.blue,
-        child: Icon(Icons.exit_to_app, color: Colors.white),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 }

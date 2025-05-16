@@ -7,6 +7,8 @@ import 'package:barsync/models/userModel.dart';
 import 'package:barsync/pages/admin/createRest.dart';
 import 'package:barsync/pages/login/login.dart';
 import 'package:barsync/services/auth/auth.dart';
+import 'package:barsync/services/database/dataBaseManager.dart'
+    as dataBaseManager;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -25,88 +27,18 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   void initState() {
     super.initState();
-    _listenToRestaurants();
+    listenToRestaurants();
   }
 
-  void _listenToRestaurants() {
-    _restaurantSubscription = FirebaseFirestore.instance
-        .collection('restaurants')
-        .snapshots()
+  void listenToRestaurants() {
+    _restaurantSubscription = dataBaseManager
+        .listenToRestaurantsWithUsers()
         .listen(
-          (snapshot) async {
-            try {
-              List<RestaurantModel> fetchedRestaurantes = [];
-
-              for (var doc in snapshot.docs) {
-                var data = doc.data();
-
-                List<UserModel> waitersList = [];
-                List<UserModel> cookersList = [];
-
-                if (data['waiters'] != null && data['waiters'] is List) {
-                  for (var ref in data['waiters']) {
-                    if (ref is DocumentReference) {
-                      try {
-                        var userDoc = await ref.get();
-                        if (userDoc.exists) {
-                          var userData = userDoc.data() as Map<String, dynamic>;
-                          waitersList.add(UserModel.fromJson(userData));
-                        } else {
-                          print('Waiter no encontrado: ${ref.id}');
-                        }
-                      } catch (e) {
-                        print('Error obteniendo waiter ${ref.id}: $e');
-                      }
-                    }
-                  }
-                }
-
-                if (data['cookers'] != null && data['cookers'] is List) {
-                  for (var ref in data['cookers']) {
-                    if (ref is DocumentReference) {
-                      try {
-                        var userDoc = await ref.get();
-                        if (userDoc.exists) {
-                          var userData = userDoc.data() as Map<String, dynamic>;
-                          cookersList.add(UserModel.fromJson(userData));
-                        } else {
-                          print('Cooker no encontrado: ${ref.id}');
-                        }
-                      } catch (e) {
-                        print('Error obteniendo cooker ${ref.id}: $e');
-                      }
-                    }
-                  }
-                }
-
-                try {
-                  fetchedRestaurantes.add(
-                    RestaurantModel(
-                      name: data['name'],
-                      state: data['state'],
-                      address: data['address'],
-                      phone: data['phone'],
-                      emailBoss: data['emailBoss'],
-                      password: data['password'],
-                      date: data['date'],
-                      waiters: waitersList,
-                      cookers: cookersList,
-                    ),
-                  );
-                } catch (e) {
-                  print(
-                    'Error construyendo RestaurantModel para ${doc.id}: $e',
-                  );
-                }
-              }
-
-              if (mounted) {
-                setState(() {
-                  restaurantes = fetchedRestaurantes;
-                });
-              }
-            } catch (e) {
-              print('Error procesando snapshot: $e');
+          (fetchedRestaurants) {
+            if (mounted) {
+              setState(() {
+                restaurantes = fetchedRestaurants;
+              });
             }
           },
           onError: (error) {
@@ -130,27 +62,33 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            Image.asset('assets/icons/barSyncApp.png', width: 30, height: 30),
-            SizedBox(width: 8),
-            Text(
-              'BarSync',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+        elevation: 0,
+        automaticallyImplyLeading:
+            false, // Evita que Flutter reserve espacio para "leading"
+        flexibleSpace: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(left: 20, top: 12),
+            child: Row(
+              children: [
+                Image.asset(
+                  'assets/icons/barSyncApp.png',
+                  width: 30,
+                  height: 30,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'BarSync',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         backgroundColor: Color.fromRGBO(23, 23, 34, 1),
-        elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Container(color: Color.fromRGBO(60, 60, 71, 1), height: 1.5),
-        ),
       ),
       body: Row(
         children: [
@@ -239,60 +177,6 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder:
-                (context) => CustomAlertDialog(
-                  title: 'Cerrar Sesión',
-                  message: '¿Está seguro de cerrar sesión?',
-                  buttonText: 'Cerrar Sesión',
-                  colorbg: Color.fromRGBO(23, 23, 34, 1),
-                  buttonColor: Colors.orange,
-                  textColor: Colors.white,
-                  actions: [
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.orange,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text('Cancelar'),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.orange,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text('Cerrar Sesión'),
-                      onPressed: () {
-                        AuthService().signOut();
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-          );
-        },
-        backgroundColor: Colors.blue,
-        child: Icon(Icons.exit_to_app, color: Colors.white),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 

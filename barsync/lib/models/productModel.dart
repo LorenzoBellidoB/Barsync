@@ -1,13 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProductModel {
-  String id = '';
+  String id;
   String name;
-  String image = '';
-  String description = '';
+  String image;
+  String description;
   List<String> eatTimes;
   List<String> addOns;
-  List<double> prices;
+  Map<String, double> prices; // <-- Cambio importante aquí
   DocumentReference<Object?> idRestaurant;
   DocumentReference<Object?> idCategory;
 
@@ -19,7 +19,7 @@ class ProductModel {
     required this.idRestaurant,
     this.addOns = const [],
     this.eatTimes = const [],
-    this.prices = const [],
+    this.prices = const {},
     required this.idCategory,
   });
 
@@ -32,70 +32,69 @@ class ProductModel {
       'image': image,
       'add_ons': addOns,
       'eat_times': eatTimes,
-      'prices': prices,
-      'restaurant': idRestaurant, // Aquí mantenemos la referencia
-      'id_category': idCategory, // Aquí mantenemos la referencia
+      'prices': prices, // Firebase guarda Map<String, double> sin problema
+      'restaurant': idRestaurant,
+      'id_category': idCategory,
     };
   }
 
   // Crear objeto desde JSON (desde Firebase)
   factory ProductModel.fromJson(Map<String, dynamic> json) {
+    final rawPrices = json['prices'] as Map<String, dynamic>? ?? {};
+    final prices = rawPrices.map(
+      (key, value) => MapEntry(key, (value as num).toDouble()),
+    );
+
     return ProductModel(
-      id: json['id'],
-      name: json['name'],
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
       description: json['description'] ?? '',
       image: json['image'] ?? '',
       addOns:
-          (json['addOns'] != null && json['addOns'] is List)
-              ? (json['addOns'] as List<dynamic>)
-                  .map((item) => item as String)
-                  .toList()
-              : [],
+          (json['add_ons'] as List?)?.map((e) => e as String).toList() ?? [],
       eatTimes:
-          (json['eat_times'] != null && json['eat_times'] is List)
-              ? (json['eat_times'] as List<dynamic>)
-                  .map((item) => item as String)
-                  .toList()
-              : [],
-      prices:
-          (json['prices'] != null && json['prices'] is List)
-              ? (json['prices'] as List)
-                  .map((item) => (item as num).toDouble())
-                  .toList()
-              : [],
-      // Cambiar esta parte para que maneje DocumentReference correctamente
+          (json['eat_times'] as List?)?.map((e) => e as String).toList() ?? [],
+      prices: prices,
       idRestaurant:
           json['restaurant'] is DocumentReference
-              ? json['restaurant'] as DocumentReference<Object?>
+              ? json['restaurant']
               : FirebaseFirestore.instance.doc(json['restaurant'] ?? ''),
       idCategory:
           json['id_category'] is DocumentReference
-              ? json['id_category'] as DocumentReference<Object?>
+              ? json['id_category']
               : FirebaseFirestore.instance.doc(json['id_category'] ?? ''),
     );
   }
 
-  // Convertir objeto a JSON sin las referencias completas (solo los datos necesarios)
+  // JSON sin referencias completas
   Map<String, dynamic> toJsonWithoutReferences() {
     return {
       'name': name,
       'description': description,
       'image': image,
-      'restaurant':
-          idRestaurant.id, // Solo enviamos el ID, no la referencia completa
+      'prices': prices,
+      'restaurant': idRestaurant.id,
+      'id_category': idCategory.id,
     };
   }
 
-  // Crear objeto desde JSON (sin referencias completas, solo con el ID)
+  // Crear objeto desde JSON sin referencias completas
   factory ProductModel.fromJsonWithoutReferences(Map<String, dynamic> json) {
+    final rawPrices = json['prices'] as Map<String, dynamic>? ?? {};
+    final prices = rawPrices.map(
+      (key, value) => MapEntry(key, (value as num).toDouble()),
+    );
+
     return ProductModel(
-      name: json['name'],
-      description: json['description'],
-      image: json['image'],
+      name: json['name'] ?? '',
+      description: json['description'] ?? '',
+      image: json['image'] ?? '',
+      prices: prices,
       idRestaurant: FirebaseFirestore.instance.doc(json['restaurant']),
       idCategory: FirebaseFirestore.instance.doc(json['id_category']),
     );
   }
+
   ProductModel copyWith({
     String? id,
     String? name,
@@ -103,7 +102,7 @@ class ProductModel {
     String? description,
     List<String>? eatTimes,
     List<String>? addOns,
-    List<double>? prices,
+    Map<String, double>? prices,
     DocumentReference<Object?>? idRestaurant,
     DocumentReference<Object?>? idCategory,
   }) {

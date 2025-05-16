@@ -9,6 +9,7 @@ import 'package:barsync/pages/boss/createProduct.dart';
 import 'package:barsync/pages/boss/editProduct.dart';
 import 'package:barsync/pages/login/login.dart';
 import 'package:barsync/services/auth/auth.dart';
+import 'package:barsync/utils/sesion.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:barsync/services/database/dataBaseManager.dart'
@@ -31,75 +32,25 @@ class _BossScreenState extends State<BossScreen> {
   @override
   void initState() {
     super.initState();
-    listenToRestaurants();
+    listenToCategories();
   }
 
-  void listenToRestaurants() {
-    _categorySubscription = FirebaseFirestore.instance
-        .collection('categories')
-        .snapshots()
+  void listenToCategories() {
+    _categorySubscription = databaseManager
+        .listenToCategories(Session().restaurantRef)
         .listen(
-          (snapshot) async {
-            try {
-              List<CategoryModel> fetchedCategorias = [];
-
-              for (var doc in snapshot.docs) {
-                var data = doc.data();
-
-                List<ProductModel> productsList = [];
-
-                if (data['products'] != null && data['products'] is List) {
-                  for (var ref in (data['products'] as List<dynamic>)) {
-                    try {
-                      // Validar que sea un DocumentReference directamente
-                      if (ref is DocumentReference) {
-                        final productDoc = await ref.get();
-                        if (productDoc.exists) {
-                          final productData =
-                              productDoc.data() as Map<String, dynamic>;
-                          productsList.add(ProductModel.fromJson(productData));
-                        } else {
-                          print('Producto no encontrado: ${ref.id}');
-                        }
-                      } else {
-                        print('Referencia de producto no válida: $ref');
-                      }
-                    } catch (e) {
-                      print('Error procesando producto: $e');
-                    }
-                  }
-                }
-
-                try {
-                  fetchedCategorias.add(
-                    CategoryModel(
-                      id: doc.id,
-                      name: data['name'],
-                      description: data['description'],
-                      image: data['image'],
-                      products: productsList,
-                      idRestaurant: (data['restaurant'] as DocumentReference),
-                    ),
-                  );
-                } catch (e) {
-                  print('Error construyendo CategoryModel para ${doc.id}: $e');
-                }
-              }
-
-              if (mounted) {
-                setState(() {
-                  categorias = fetchedCategorias;
-                });
-              }
-            } catch (e) {
-              print('Error procesando snapshot: $e');
+          (fetchedCategories) {
+            if (mounted) {
+              setState(() {
+                categorias = fetchedCategories;
+              });
             }
           },
           onError: (error) {
-            print('Error en el stream de categorias: $error');
+            print('Error en el stream de categorías: $error');
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error al escuchar las categorias')),
+                SnackBar(content: Text('Error al escuchar las categorías')),
               );
             }
           },
@@ -116,27 +67,33 @@ class _BossScreenState extends State<BossScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            Image.asset('assets/icons/barSyncApp.png', width: 30, height: 30),
-            SizedBox(width: 8),
-            Text(
-              'BarSync',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+        elevation: 0,
+        automaticallyImplyLeading:
+            false, // Evita que Flutter reserve espacio para "leading"
+        flexibleSpace: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(left: 20, top: 12),
+            child: Row(
+              children: [
+                Image.asset(
+                  'assets/icons/barSyncApp.png',
+                  width: 30,
+                  height: 30,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'BarSync',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         backgroundColor: Color.fromRGBO(23, 23, 34, 1),
-        elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Container(color: Color.fromRGBO(60, 60, 71, 1), height: 1.5),
-        ),
       ),
       body: Row(
         children: [
@@ -457,7 +414,7 @@ class _BossScreenState extends State<BossScreen> {
                                                 ),
                                               ).then((_) {
                                                 // Esto se llama cuando regresas de la pantalla de edición
-                                                listenToRestaurants();
+                                                listenToCategories();
                                                 setState(() {});
                                               });
                                             }),
@@ -490,7 +447,7 @@ class _BossScreenState extends State<BossScreen> {
                                                   ),
                                                 );
                                               }
-                                              listenToRestaurants();
+                                              listenToCategories();
                                             }),
                                           ],
                                         ),
@@ -508,60 +465,6 @@ class _BossScreenState extends State<BossScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder:
-                (context) => CustomAlertDialog(
-                  title: 'Cerrar Sesión',
-                  message: '¿Está seguro de cerrar sesión?',
-                  buttonText: 'Cerrar Sesión',
-                  colorbg: Color.fromRGBO(23, 23, 34, 1),
-                  buttonColor: Colors.orange,
-                  textColor: Colors.white,
-                  actions: [
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.orange,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text('Cancelar'),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.orange,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text('Cerrar Sesión'),
-                      onPressed: () {
-                        AuthService().signOut();
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-          );
-        },
-        backgroundColor: Colors.blue,
-        child: Icon(Icons.exit_to_app, color: Colors.white),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 

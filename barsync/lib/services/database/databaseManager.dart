@@ -1,12 +1,17 @@
-import 'dart:ffi';
-
 import 'package:barsync/models/categoryModel.dart';
+import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/models/productModel.dart';
+import 'package:barsync/models/productOrderModel.dart';
 import 'package:barsync/models/restaurantModel.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Users
+
+DocumentReference<Object?> getUserById(UserModel user) {
+  return FirebaseFirestore.instance.collection('users').doc(user.id);
+}
+
 Future<void> saveUser(UserModel user) async {
   if (user.email.isEmpty || user.password.isEmpty || user.rol.isEmpty) {
     throw Exception('Email, contraseña y rol son obligatorios.');
@@ -254,5 +259,273 @@ Future<bool> updateProduct(ProductModel producto) async {
   } catch (e) {
     print('Error al actualizar producto: $e');
     return false;
+  }
+}
+
+Stream<List<OrderModel>> listenToOrdersPending(
+  DocumentReference restaurantRef,
+) {
+  return FirebaseFirestore.instance
+      .collection('orders')
+      .where('restaurant', isEqualTo: restaurantRef)
+      .where('state', isNotEqualTo: 'listo')
+      .orderBy('state')
+      .snapshots()
+      .asyncMap((snapshot) async {
+        List<OrderModel> fetchedOrders = [];
+
+        for (var doc in snapshot.docs) {
+          var data = doc.data();
+          List<ProductOrderModel> productsList = [];
+          print('Lista de productos recibida: ${data['products']}');
+
+          if (data['products'] != null && data['products'] is List) {
+            for (var ref in (data['products'] as List<dynamic>)) {
+              DocumentReference? productRef;
+
+              if (ref is DocumentReference) {
+                productRef = ref;
+              } else if (ref is String && ref.isNotEmpty) {
+                productRef = FirebaseFirestore.instance.doc(ref);
+              }
+
+              if (productRef != null && productRef.path.isNotEmpty) {
+                try {
+                  final productDoc = await productRef.get();
+                  if (productDoc.exists) {
+                    final productData =
+                        productDoc.data() as Map<String, dynamic>;
+                    productsList.add(ProductOrderModel.fromJson(productData));
+                  }
+                } catch (e) {
+                  print('Error al obtener producto: $e');
+                }
+              } else {
+                print('Referencia de producto no válida: $ref');
+              }
+            }
+          }
+
+          final restaurantRef = data['restaurant'];
+          if (restaurantRef is! DocumentReference) {
+            throw Exception('El campo "restaurant" no es válido.');
+          }
+
+          fetchedOrders.add(
+            OrderModel(
+              id: doc.id,
+              time: data['time'],
+              table: data['table'],
+              state: data['state'],
+              products: productsList,
+              idRestaurant: restaurantRef,
+              waiter: data['waiter'],
+            ),
+          );
+        }
+
+        return fetchedOrders;
+      });
+}
+
+Stream<List<OrderModel>> listenToOrdersReady(DocumentReference restaurantRef) {
+  return FirebaseFirestore.instance
+      .collection('orders')
+      .where('restaurant', isEqualTo: restaurantRef)
+      .where('state', isEqualTo: 'listo')
+      .orderBy('state')
+      .snapshots()
+      .asyncMap((snapshot) async {
+        List<OrderModel> fetchedOrders = [];
+
+        for (var doc in snapshot.docs) {
+          var data = doc.data();
+          List<ProductOrderModel> productsList = [];
+
+          if (data['products'] != null && data['products'] is List) {
+            for (var ref in (data['products'] as List<dynamic>)) {
+              if (ref is DocumentReference) {
+                final productDoc = await ref.get();
+                if (productDoc.exists) {
+                  final productData = productDoc.data() as Map<String, dynamic>;
+                  productsList.add(ProductOrderModel.fromJson(productData));
+                }
+              }
+            }
+          }
+
+          final restaurantRef = data['restaurant'];
+          if (restaurantRef is! DocumentReference) {
+            throw Exception('El campo "restaurant" no es válido.');
+          }
+
+          fetchedOrders.add(
+            OrderModel(
+              id: doc.id,
+              time: data['time'],
+              table: data['table'],
+              state: data['state'],
+              products: productsList,
+              idRestaurant: restaurantRef,
+              waiter: data['waiter'],
+            ),
+          );
+        }
+
+        return fetchedOrders;
+      });
+}
+
+Stream<List<CategoryModel>> listenToCategories(
+  DocumentReference restaurantRef,
+) {
+  return FirebaseFirestore.instance
+      .collection('categories')
+      .where('restaurant', isEqualTo: restaurantRef)
+      .snapshots()
+      .asyncMap((snapshot) async {
+        List<CategoryModel> fetchedCategories = [];
+
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+
+          List<ProductModel> productsList = [];
+
+          if (data['products'] != null && data['products'] is List) {
+            for (var ref in (data['products'] as List<dynamic>)) {
+              if (ref is DocumentReference) {
+                final productDoc = await ref.get();
+                if (productDoc.exists) {
+                  final productData = productDoc.data() as Map<String, dynamic>;
+                  productsList.add(ProductModel.fromJson(productData));
+                }
+              }
+            }
+          }
+
+          fetchedCategories.add(
+            CategoryModel(
+              id: doc.id,
+              name: data['name'],
+              description: data['description'],
+              image: data['image'],
+              products: productsList,
+              idRestaurant: data['restaurant'] as DocumentReference,
+            ),
+          );
+        }
+
+        return fetchedCategories;
+      });
+}
+
+Stream<List<RestaurantModel>> listenToRestaurantsWithUsers() {
+  return FirebaseFirestore.instance
+      .collection('restaurants')
+      .snapshots()
+      .asyncMap((snapshot) async {
+        List<RestaurantModel> fetchedRestaurants = [];
+
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+
+          List<UserModel> waitersList = [];
+          List<UserModel> cookersList = [];
+
+          if (data['waiters'] != null && data['waiters'] is List) {
+            for (var ref in data['waiters']) {
+              if (ref is DocumentReference) {
+                try {
+                  var userDoc = await ref.get();
+                  if (userDoc.exists) {
+                    var userData = userDoc.data() as Map<String, dynamic>;
+                    waitersList.add(UserModel.fromJson(userData));
+                  } else {
+                    print('Waiter no encontrado: ${ref.id}');
+                  }
+                } catch (e) {
+                  print('Error obteniendo waiter ${ref.id}: $e');
+                }
+              }
+            }
+          }
+
+          if (data['cookers'] != null && data['cookers'] is List) {
+            for (var ref in data['cookers']) {
+              if (ref is DocumentReference) {
+                try {
+                  var userDoc = await ref.get();
+                  if (userDoc.exists) {
+                    var userData = userDoc.data() as Map<String, dynamic>;
+                    cookersList.add(UserModel.fromJson(userData));
+                  } else {
+                    print('Cooker no encontrado: ${ref.id}');
+                  }
+                } catch (e) {
+                  print('Error obteniendo cooker ${ref.id}: $e');
+                }
+              }
+            }
+          }
+
+          try {
+            fetchedRestaurants.add(
+              RestaurantModel(
+                id: doc.id,
+                name: data['name'],
+                state: data['state'],
+                address: data['address'],
+                phone: data['phone'],
+                emailBoss: data['emailBoss'],
+                password: data['password'],
+                date: data['date'],
+                waiters: waitersList,
+                cookers: cookersList,
+              ),
+            );
+          } catch (e) {
+            print('Error construyendo RestaurantModel para ${doc.id}: $e');
+          }
+        }
+
+        return fetchedRestaurants;
+      });
+}
+
+Future<int> getTableNumber(OrderModel comanda) async {
+  final tableSnapshot =
+      await comanda.table.get(); // Asegúrate que `table` es DocumentReference
+  final tableData = tableSnapshot.data() as Map<String, dynamic>;
+  return tableData['number'] ?? 0;
+}
+
+DocumentReference getTableRefById(String tableId) {
+  return FirebaseFirestore.instance.collection('tables').doc(tableId);
+}
+
+Future<DocumentReference> createOrder(
+  DocumentReference user,
+  String tableId,
+  DocumentReference restaurantId,
+) async {
+  try {
+    final docRef = FirebaseFirestore.instance.collection('orders').doc();
+    DocumentReference tableRef = getTableRefById(tableId);
+    final order = OrderModel(
+      id: docRef.id,
+      state: 'pendiente',
+      time: Timestamp.now(),
+      products: [],
+      table: tableRef,
+      idRestaurant: restaurantId,
+      waiter: user,
+    );
+
+    await docRef.set(order.toJson());
+
+    return docRef;
+  } catch (e) {
+    print("Error al guardar una comanda: $e");
+    rethrow;
   }
 }
