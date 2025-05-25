@@ -3,8 +3,10 @@ import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/models/productModel.dart';
 import 'package:barsync/models/productOrderModel.dart';
 import 'package:barsync/models/restaurantModel.dart';
+import 'package:barsync/models/tableModel.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // Users
 
@@ -277,31 +279,22 @@ Stream<List<OrderModel>> listenToOrdersPending(
         for (var doc in snapshot.docs) {
           var data = doc.data();
           List<ProductOrderModel> productsList = [];
-          print('Lista de productos recibida: ${data['products']}');
 
           if (data['products'] != null && data['products'] is List) {
-            for (var ref in (data['products'] as List<dynamic>)) {
-              DocumentReference? productRef;
-
+            for (var ref in (data['products'] as List)) {
               if (ref is DocumentReference) {
-                productRef = ref;
-              } else if (ref is String && ref.isNotEmpty) {
-                productRef = FirebaseFirestore.instance.doc(ref);
-              }
-
-              if (productRef != null && productRef.path.isNotEmpty) {
                 try {
-                  final productDoc = await productRef.get();
-                  if (productDoc.exists) {
-                    final productData =
-                        productDoc.data() as Map<String, dynamic>;
-                    productsList.add(ProductOrderModel.fromJson(productData));
+                  final productOrderDoc = await ref.get();
+                  if (productOrderDoc.exists) {
+                    final productOrderData =
+                        productOrderDoc.data() as Map<String, dynamic>;
+                    productsList.add(
+                      ProductOrderModel.fromJson(productOrderData),
+                    );
                   }
                 } catch (e) {
-                  print('Error al obtener producto: $e');
+                  print('Error al obtener producto de orden: $e');
                 }
-              } else {
-                print('Referencia de producto no válida: $ref');
               }
             }
           }
@@ -343,12 +336,19 @@ Stream<List<OrderModel>> listenToOrdersReady(DocumentReference restaurantRef) {
           List<ProductOrderModel> productsList = [];
 
           if (data['products'] != null && data['products'] is List) {
-            for (var ref in (data['products'] as List<dynamic>)) {
+            for (var ref in (data['products'] as List)) {
               if (ref is DocumentReference) {
-                final productDoc = await ref.get();
-                if (productDoc.exists) {
-                  final productData = productDoc.data() as Map<String, dynamic>;
-                  productsList.add(ProductOrderModel.fromJson(productData));
+                try {
+                  final productOrderDoc = await ref.get();
+                  if (productOrderDoc.exists) {
+                    final productOrderData =
+                        productOrderDoc.data() as Map<String, dynamic>;
+                    productsList.add(
+                      ProductOrderModel.fromJson(productOrderData),
+                    );
+                  }
+                } catch (e) {
+                  print('Error al obtener producto de orden: $e');
                 }
               }
             }
@@ -499,33 +499,156 @@ Future<int> getTableNumber(OrderModel comanda) async {
   return tableData['number'] ?? 0;
 }
 
-DocumentReference getTableRefById(String tableId) {
+DocumentReference getTableRefById(String? tableId) {
   return FirebaseFirestore.instance.collection('tables').doc(tableId);
 }
 
-Future<DocumentReference> createOrder(
-  DocumentReference user,
-  String tableId,
-  DocumentReference restaurantId,
-) async {
+Future<DocumentReference> createOrder(OrderModel order) async {
   try {
     final docRef = FirebaseFirestore.instance.collection('orders').doc();
-    DocumentReference tableRef = getTableRefById(tableId);
-    final order = OrderModel(
-      id: docRef.id,
-      state: 'pendiente',
-      time: Timestamp.now(),
-      products: [],
-      table: tableRef,
-      idRestaurant: restaurantId,
-      waiter: user,
-    );
+    order.id = docRef.id;
 
-    await docRef.set(order.toJson());
+    // Crear productos en 'productsOrder' y guardar referencias
+    List<DocumentReference> productRefs = [];
+    for (ProductOrderModel p in order.products) {
+      DocumentReference productOrderRef = await createProductOrder(p);
+      productRefs.add(productOrderRef);
+    }
+
+    // Crear JSON manualmente para garantizar que son referencias
+    final orderData = {
+      'id': order.id,
+      'time': order.time,
+      'table': order.table,
+      'state': order.state,
+      'products': productRefs,
+      'restaurant': order.idRestaurant,
+      'waiter': order.waiter,
+    };
+
+    await docRef.set(orderData);
 
     return docRef;
   } catch (e) {
-    print("Error al guardar una comanda: $e");
+    print("❌ Error al guardar una comanda: $e");
     rethrow;
+  }
+}
+
+Future<DocumentReference> createProductOrder(ProductOrderModel order) async {
+  try {
+    final ordersRef = FirebaseFirestore.instance.collection('productsOrder');
+
+    DocumentReference docRef;
+    if (order.id.isEmpty) {
+      docRef = await ordersRef.add(order.toJson());
+      await docRef.update({'id': docRef.id});
+    } else {
+      docRef = ordersRef.doc(order.id);
+      await docRef.set(order.toJson());
+    }
+
+    return docRef;
+  } catch (e) {
+    print('Error al guardar el producto: $e');
+    rethrow;
+  }
+}
+
+Future<void> updateProductsOrder(
+  DocumentReference order,
+  List<ProductOrderModel> products,
+) async {
+  final firestore = FirebaseFirestore.instance;
+  try {
+    final orderDoc = order;
+    print("Referencia restaurante: $orderDoc");
+
+    List<DocumentReference> prosuctsRefs = [];
+
+    for (ProductOrderModel product in products) {
+      final productid = product.id.trim();
+
+      if (productid == null || productid.isEmpty) {
+        print('❌ Producto sin ID válido: ${product.toJson()}');
+        continue; // Saltamos este usuario
+      }
+
+      final productRef = firestore.collection('productsOrder').doc(productid);
+
+      prosuctsRefs.add(productRef);
+    }
+    // Actualizamos el restaurante con las referencias a los usuarios
+    await orderDoc.update({'products': FieldValue.arrayUnion(prosuctsRefs)});
+
+    print('Referencias de usuarios añadidas al restaurante correctamente.');
+  } catch (e) {
+    print('Error al actualizar el restaurante: $e');
+  }
+}
+
+Future<void> createAuthUserAndSave(
+  UserModel user,
+  DocumentReference restRef,
+) async {
+  try {
+    // Crear usuario en Firebase Auth
+    final UserCredential userCredential = await FirebaseAuth.instance
+        .createUserWithEmailAndPassword(
+          email: user.email,
+          password: user.password,
+        );
+
+    // Enviar verificación por correo
+    await userCredential.user?.sendEmailVerification();
+
+    // Guardar datos del usuario en Firestore
+    final userWithAuth = user.copyWith(
+      id: userCredential.user!.uid,
+      first_pass:
+          true, // Marcamos que es la primera contraseña (la por defecto)
+    );
+
+    await saveUserWithRestaurant(userWithAuth, restRef);
+  } catch (e) {
+    print("❌ Error creando usuario Auth: $e");
+  }
+}
+
+Future<void> loginUser(String email, String password) async {
+  try {
+    final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    // Verificar si el email está verificado
+    if (!credential.user!.emailVerified) {
+      // Mostrar mensaje o reenviar verificación
+      print("⚠️ El correo no está verificado");
+      return;
+    }
+
+    // Obtener los datos del usuario desde Firestore
+    final userDoc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(credential.user!.uid)
+            .get();
+
+    if (userDoc.exists) {
+      final userModel = UserModel.fromJson(userDoc.data()!);
+
+      if (userModel.first_pass) {
+        // Redirigir a pantalla para cambiar contraseña
+        print("⚠️ Usando contraseña por defecto. Obligar cambio.");
+        // Navega a la pantalla de cambio de contraseña
+      } else {
+        // Acceso normal
+        print("✅ Bienvenido ${userModel.name}");
+      }
+    }
+  } catch (e) {
+    print("❌ Error de login: $e");
   }
 }

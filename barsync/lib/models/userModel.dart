@@ -6,6 +6,7 @@ class UserModel {
   String rol;
   String email;
   String password;
+  bool first_pass = true;
   Timestamp register_date;
   DocumentReference<Object?> idRestaurante;
 
@@ -15,6 +16,7 @@ class UserModel {
     required this.rol,
     required this.email,
     required this.password,
+    this.first_pass = true,
     required this.register_date,
     required this.idRestaurante,
   });
@@ -27,21 +29,34 @@ class UserModel {
       'rol': rol,
       'email': email,
       'password': password,
+      'first_pass': first_pass,
       'register_date': register_date,
       'idRestaurante': idRestaurante,
     };
   }
 
-  // Crear objeto desde JSON sin id
-  // factory UserModel.fromJsonWithoutId(Map<String, dynamic> json) {
-  //   return UserModel(
-  //     name: json['name'],
-  //     email: json['email'],
-  //     password: json['password'],
-  //     rol: json['role'],
-  //     register_date: json['register_date'],
-  //   );
-  // }
+  // Creo una copia modificada de un user existente
+  UserModel copyWith({
+    String? id,
+    String? name,
+    String? rol,
+    String? email,
+    String? password,
+    bool? first_pass,
+    Timestamp? register_date,
+    DocumentReference<Object?>? idRestaurante,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      rol: rol ?? this.rol,
+      email: email ?? this.email,
+      password: password ?? this.password,
+      first_pass: first_pass ?? this.first_pass,
+      register_date: register_date ?? this.register_date,
+      idRestaurante: idRestaurante ?? this.idRestaurante,
+    );
+  }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final rawRef = json['idRestaurante'];
@@ -58,6 +73,7 @@ class UserModel {
       rol: json['rol'] ?? '',
       email: json['email'] ?? '',
       password: json['password'] ?? '',
+      first_pass: json['first_pass'] ?? true,
       register_date: json['register_date'],
       idRestaurante:
           rawRef is DocumentReference

@@ -118,4 +118,28 @@ class ProductModel {
       idCategory: idCategory ?? this.idCategory,
     );
   }
+
+  /// Crea un `ProductModel` a partir de un documento Firestore.
+  ///
+  /// Extrae los campos necesarios del documento, usando valores por
+  /// defecto si algún campo falta, y convierte tipos según corresponda.
+  /// Devuelve una instancia con los datos del producto.
+  factory ProductModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return ProductModel(
+      id: doc.id,
+      name: data['name'] ?? '',
+      image: data['image'] ?? '',
+      description: data['description'] ?? '',
+      eatTimes: List<String>.from(data['eat_times'] ?? []),
+      addOns: List<String>.from(data['add_ons'] ?? []),
+      prices: Map<String, double>.from(
+        (data['prices'] ?? {}).map(
+          (k, v) => MapEntry(k.toString(), (v as num).toDouble()),
+        ),
+      ),
+      idRestaurant: data['restaurant'],
+      idCategory: data['id_category'],
+    );
+  }
 }

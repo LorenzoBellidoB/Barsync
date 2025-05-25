@@ -26,7 +26,7 @@ class OrderModel {
       'id': id,
       'state': state,
       'time': time,
-      'products': products,
+      'products': products.map((p) => p.toJson()).toList(),
       'table': table,
       'restaurant': idRestaurant,
       'waiter': waiter,
@@ -39,7 +39,11 @@ class OrderModel {
       id: id,
       state: json['state'] ?? '',
       time: json['time'] as Timestamp,
-      products: [], // cargar productos aparte si es necesario
+      products:
+          (json['products'] as List<dynamic>?)
+              ?.map((item) => ProductOrderModel.fromJson(item))
+              .toList() ??
+          [],
       table:
           json['table'] is DocumentReference
               ? json['table']

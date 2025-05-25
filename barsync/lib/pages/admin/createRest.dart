@@ -101,8 +101,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
           backgroundColor: Colors.green,
         ),
       );
-
-      // Guardar los camareros y cocineros en el restaurante
     } catch (e) {
       print(e);
     }
@@ -122,9 +120,9 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     );
     print(boss.toJson());
     try {
-      await databaseManager.saveUserWithRestaurant(boss, id);
-      print(boss.toJson()); // Ahora sí tendrá el id
-      listUsers.add(boss); // ✅ Se añade con id correcto
+      await databaseManager.createAuthUserAndSave(boss, id);
+      print(boss.toJson());
+      listUsers.add(boss);
     } catch (e) {
       print(e);
     }
@@ -142,9 +140,9 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
       );
 
       try {
-        await databaseManager.saveUserWithRestaurant(camarero, id);
-        print(camarero.toJson()); // Ahora sí tendrá el id
-        listUsers.add(camarero); // ✅ Se añade con id correcto
+        await databaseManager.createAuthUserAndSave(camarero, id);
+        print(camarero.toJson());
+        listUsers.add(camarero);
       } catch (e) {
         print(e);
       }
@@ -163,7 +161,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
       );
 
       try {
-        await databaseManager.saveUserWithRestaurant(cocinero, id);
+        await databaseManager.createAuthUserAndSave(cocinero, id);
         print(cocinero.toJson());
         listUsers.add(cocinero);
       } catch (e) {

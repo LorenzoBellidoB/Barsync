@@ -173,7 +173,26 @@ class _WaiterScreenState extends State<WaiterScreen> {
                 itemBuilder: (context, index) {
                   final table = tables[index];
                   return GestureDetector(
-                    onTap: () => selectTable(table),
+                    onTap: () async {
+                      final currentUser = Session().currentUser;
+
+                      // Si el camarero es el mismo que está atendiendo la mesa
+                      if (table.state == 'ocupado' &&
+                          table.waiter?.id == currentUser.id) {
+                        // Opcional: podrías cargar la orden existente si necesitas pasar datos
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => OrderScreen(table: table),
+                          ),
+                        );
+                      }
+                      // Si la mesa no está ocupada (libre o reservada), la puedes seleccionar
+                      else if (table.state != 'ocupado') {
+                        selectTable(table);
+                      }
+                    },
+
                     child: buildTableWidget(table),
                   );
                 },
@@ -182,7 +201,9 @@ class _WaiterScreenState extends State<WaiterScreen> {
           ),
 
           // Panel inferior (solo si hay mesa seleccionada)
-          if (selectedTable != null && selectedTable?.state != 'ocupado')
+          if (selectedTable != null &&
+              (selectedTable!.state != 'ocupado' ||
+                  selectedTable!.waiter?.id == Session().currentUser))
             buildPanel(),
         ],
       ),
@@ -272,33 +293,31 @@ class _WaiterScreenState extends State<WaiterScreen> {
                     DocumentReference user = dataBaseManager.getUserById(
                       Session().currentUser,
                     );
-                    if (newDinners != null) {
-                      DocumentReference orderRef = await dataBaseManager
-                          .createOrder(
-                            user,
-                            selectedTable!.id,
-                            selectedTable!.idRestaurant,
-                          );
+
+                    final table = selectedTable;
+
+                    if (newDinners != null && table != null) {
                       await FirebaseFirestore.instance
                           .collection('tables')
-                          .doc(selectedTable!.id)
+                          .doc(table.id)
                           .update({
                             'dinners': newDinners,
                             'state': 'ocupado',
                             'waiter': user,
-                            'currentOrder': orderRef,
                           });
-
-                      setState(() => selectedTable = null);
+                      table.dinners = newDinners;
                     }
+
+                    setState(() => selectedTable = null); // Cierra el panel
 
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const CreateOrderScreen(),
+                        builder: (context) => OrderScreen(table: table!),
                       ),
                     );
                   },
+
                   icon: Icon(Icons.receipt_long),
                   label: Text('Realizar comanda'),
                 ),
