@@ -331,7 +331,7 @@ class _OrderScreenState extends State<OrderScreen>
                             onPressed: () {
                               OrderModel order = OrderModel(
                                 id: '',
-                                state: 'Pendiente',
+                                state: 'pendiente',
                                 time: Timestamp.now(),
                                 products: orderProducts,
                                 table: getTableRefById(widget.table?.id),

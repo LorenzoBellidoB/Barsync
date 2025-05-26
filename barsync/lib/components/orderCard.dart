@@ -24,7 +24,8 @@ class OrderCard extends StatefulWidget {
 }
 
 class _OrderCardState extends State<OrderCard> {
-  final Map<String, bool> _groupSelections = {};
+  String? _selectedGroupKey;
+
   Timer? _timer;
   String getTime(DateTime createdTime) {
     final now = DateTime.now();
@@ -55,7 +56,6 @@ class _OrderCardState extends State<OrderCard> {
       final size = product.price.keys.first;
       final addonsKey = product.addOns?.join(',') ?? '';
       final key = '${product.name}_$size\_$addonsKey';
-      _groupSelections[key] = false;
     }
   }
 
@@ -72,8 +72,8 @@ class _OrderCardState extends State<OrderCard> {
     Color footerColor;
     String buttonText;
 
-    switch (widget.comanda.state) {
-      case 'esperando':
+    switch (widget.comanda.state.toLowerCase()) {
+      case 'pendiente':
         headerColor = Colors.grey[900]!;
         footerColor = Colors.black87;
         buttonText = 'Cocinar';
@@ -103,7 +103,7 @@ class _OrderCardState extends State<OrderCard> {
     }
 
     return Container(
-      width: 260,
+      width: 280,
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF2F2F38),
@@ -193,62 +193,94 @@ class _OrderCardState extends State<OrderCard> {
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '$quantity x ${product.name} ($size)',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color:
+                            group.every((p) => p.done)
+                                ? Colors.green.withOpacity(0.1)
+                                : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '$quantity x ${product.name} ($size)',
+                                  style: TextStyle(
+                                    color:
+                                        group.every((p) => p.done)
+                                            ? Colors.greenAccent
+                                            : Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                    decoration:
+                                        group.every((p) => p.done)
+                                            ? TextDecoration.lineThrough
+                                            : TextDecoration.none,
+                                  ),
+                                ),
                               ),
-                            ),
-                            // Me dara problemas en el futuro
-                            // Checkbox(
-                            //   value: group.every((p) => p.done),
-                            //   onChanged: (bool? value) async {
-                            //     final newValue = value ?? false;
+                              Checkbox(
+                                value: group.every((p) => p.done),
+                                onChanged: (bool? value) async {
+                                  final newValue = value ?? false;
 
-                            //     setState(() {
-                            //       for (var item in group) {
-                            //         item.done = newValue;
-                            //       }
-                            //     });
+                                  setState(() {
+                                    for (var item in group) {
+                                      item.done = newValue;
+                                    }
+                                  });
 
-                            //     // Actualizar en Firestore cada producto individualmente
-                            //     for (var item in group) {
-                            //       await dataBaseManager.itemRefUpdateDone(
-                            //         item.id,
-                            //         newValue,
-                            //       );
-                            //     }
+                                  // for (var item in group) {
+                                  //   await dataBaseManager.itemRefUpdateDone(
+                                  //     item.id,
+                                  //     newValue,
+                                  //   );
+                                  // }
 
-                            //     // Lógica adicional si todos los productos están listos
-                            //     final allDone = widget.comanda.products.every(
-                            //       (p) => p.done,
-                            //     );
-                            //     if (allDone) {
-                            //       widget.onButtonPressed();
-                            //     }
-                            //   },
-                            // ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        if (product.addOns.isNotEmpty)
-                          ...product.addOns.map(
-                            (addOn) => Padding(
-                              padding: const EdgeInsets.only(left: 12),
-                              child: Text(
-                                '• $addOn',
-                                style: const TextStyle(color: Colors.white70),
+                                  final allDone = widget.comanda.products.every(
+                                    (p) => p.done,
+                                  );
+                                  if (allDone) {
+                                    widget.onButtonPressed();
+                                  }
+                                },
+                                activeColor: Colors.greenAccent,
+                                checkColor: Colors.black,
                               ),
-                            ),
+                            ],
                           ),
-                      ],
+                          const SizedBox(height: 4),
+                          if (product.addOns.isNotEmpty)
+                            ...product.addOns.map(
+                              (addOn) => Padding(
+                                padding: const EdgeInsets.only(left: 12),
+                                child: Text(
+                                  '• $addOn',
+                                  style: TextStyle(
+                                    color:
+                                        group.every((p) => p.done)
+                                            ? Colors.greenAccent.withOpacity(
+                                              0.7,
+                                            )
+                                            : Colors.white70,
+                                    fontStyle:
+                                        group.every((p) => p.done)
+                                            ? FontStyle.italic
+                                            : FontStyle.normal,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   );
                 }),
