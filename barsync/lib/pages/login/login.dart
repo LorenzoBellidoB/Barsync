@@ -9,6 +9,7 @@ import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:barsync/utils/sesion.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:barsync/services/notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +19,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final NotificationService _notificationService = NotificationService();
+
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   String rol = "";
@@ -62,15 +65,16 @@ class _LoginScreenState extends State<LoginScreen> {
           if (users.isNotEmpty) {
             UserModel userModel = users.first;
             print("Usuario logueado: ${userModel.email} - ${userModel.rol} ");
-
+            Session().setRestaurant(userModel.idRestaurante);
+            Session().setUser(userModel);
+            await _notificationService.initFCM();
+            _notificationService.setupListeners();
             rol = userModel.rol;
             switch (rol.toLowerCase()) {
               case "waiter":
-                // Mostrar diálogo exitoso (como ya tenías)
                 showDialog(
                   context: context,
-                  barrierDismissible:
-                      false, // <-- ¡Esta línea evita que se cierre tocando fuera!
+                  barrierDismissible: false,
                   builder:
                       (context) => CustomAlertDialog(
                         title: "Login exitoso",
@@ -81,8 +85,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         textColor: Colors.white,
                         buttonColor: Colors.blueAccent,
                         onConfirm: () {
-                          Session().setRestaurant(userModel.idRestaurante);
-                          Session().setUser(userModel);
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -93,6 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                 );
                 break;
+
               case "cooker":
                 // Mostrar diálogo exitoso (como ya tenías)
                 showDialog(
@@ -109,10 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         textColor: Colors.white,
                         buttonColor: Colors.blueAccent,
                         onConfirm: () {
-                          print(userModel.idRestaurante);
                           print(userModel.toJson());
-                          Session().setRestaurant(userModel.idRestaurante);
-                          Session().setUser(userModel);
                           print(Session().idRestaurant);
                           Navigator.push(
                             context,
@@ -142,9 +142,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         onConfirm: () {
                           print(userModel.idRestaurante);
                           print(userModel.toJson());
-                          Session().setRestaurant(userModel.idRestaurante);
-                          Session().setUser(userModel);
-                          print(Session().idRestaurant);
                           Navigator.push(
                             context,
                             MaterialPageRoute(

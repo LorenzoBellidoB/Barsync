@@ -9,6 +9,7 @@ class ProductOrderModel {
   Map<String, double> price;
   DocumentReference<Object?> idRestaurant;
   DocumentReference<Object?> idCategory;
+  String orderId;
 
   ProductOrderModel({
     this.id = '',
@@ -18,9 +19,9 @@ class ProductOrderModel {
     this.addOns = const [],
     this.price = const {},
     required this.idCategory,
+    this.orderId = '',
   });
 
-  // Convertir objeto a JSON (para Firebase)
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -30,10 +31,10 @@ class ProductOrderModel {
       'price': price,
       'restaurant': idRestaurant,
       'id_category': idCategory,
+      'orderId': orderId,
     };
   }
 
-  // Crear objeto desde JSON (desde Firebase)
   factory ProductOrderModel.fromJson(Map<String, dynamic> json) {
     final rawprice = json['price'] as Map<String, dynamic>? ?? {};
     final price = rawprice.map(
@@ -43,10 +44,11 @@ class ProductOrderModel {
     return ProductOrderModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
-      done: json['done'],
+      done: json['done'] ?? false,
       price: price,
       idRestaurant: getValidDocRef(json['restaurant'], 'restaurants/default'),
       idCategory: getValidDocRef(json['id_category'], 'categories/default'),
+      orderId: json['orderId'] ?? '',
       addOns:
           (json['add_ons'] as List?)?.map((e) => e.toString()).toList() ?? [],
     );

@@ -6,6 +6,7 @@ import 'package:barsync/models/restaurantModel.dart';
 import 'package:barsync/models/tableModel.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // Users
@@ -511,6 +512,7 @@ Future<DocumentReference> createOrder(OrderModel order) async {
     // Crear productos en 'productsOrder' y guardar referencias
     List<DocumentReference> productRefs = [];
     for (ProductOrderModel p in order.products) {
+      p.orderId = order.id;
       DocumentReference productOrderRef = await createProductOrder(p);
       productRefs.add(productOrderRef);
     }
@@ -650,5 +652,45 @@ Future<void> loginUser(String email, String password) async {
     }
   } catch (e) {
     print("❌ Error de login: $e");
+  }
+}
+
+Future<void> updateProductDone(String productId, bool value) async {
+  final ref = FirebaseFirestore.instance
+      .collection('productsOrder')
+      .doc(productId);
+
+  await ref.update({'done': value});
+
+  // Aquí podrías enviar una notificación si es necesario
+  print('✅ Producto $productId marcado como ${value ? 'hecho' : 'pendiente'}');
+}
+
+Future<String?> getWaiterToken(OrderModel order) async {
+  final waiterRef = order.waiter; // DocumentReference
+  final snap = await waiterRef.get();
+  final data = snap.data() as Map<String, dynamic>;
+  return data['fcmToken'];
+}
+
+Future<void> sendNotificationToWaiter({
+  required String token,
+  required String title,
+  required String body,
+}) async {
+  try {
+    final HttpsCallable callable = FirebaseFunctions.instance.httpsCallable(
+      'sendNotification',
+    );
+
+    final response = await callable.call(<String, dynamic>{
+      'token': token,
+      'title': title,
+      'body': body,
+    });
+
+    print('Respuesta de la notificación: ${response.data}');
+  } on FirebaseFunctionsException catch (e) {
+    print('Error al enviar notificación: ${e.message}');
   }
 }

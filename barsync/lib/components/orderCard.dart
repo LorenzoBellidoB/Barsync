@@ -4,6 +4,7 @@ import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/models/productOrderModel.dart';
 import 'package:barsync/services/database/dataBaseManager.dart'
     as dataBaseManager;
+import 'package:barsync/services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -238,13 +239,31 @@ class _OrderCardState extends State<OrderCard> {
                                     }
                                   });
 
-                                  // for (var item in group) {
-                                  //   await dataBaseManager.itemRefUpdateDone(
-                                  //     item.id,
-                                  //     newValue,
-                                  //   );
-                                  // }
+                                  // 🔥 Actualiza en Firestore
+                                  for (var item in group) {
+                                    await FirebaseFirestore.instance
+                                        .collection('productsOrder')
+                                        .doc(item.id)
+                                        .update({'done': newValue});
+                                  }
+                                  // 👇 Obtener el token del mesero
+                                  final waiterToken = await dataBaseManager
+                                      .getWaiterToken(widget.comanda);
 
+                                  if (waiterToken != null) {
+                                    final mesaNum = await dataBaseManager
+                                        .getTableNumber(widget.comanda);
+
+                                    await NotificationService()
+                                        .sendNotificationToToken(
+                                          token: waiterToken,
+                                          title: 'Producto listo',
+                                          body:
+                                              'Tu producto "${product.name}" de la Mesa $mesaNum está listo.',
+                                        );
+                                  }
+
+                                  // ✅ Si todos están hechos, dispara acción
                                   final allDone = widget.comanda.products.every(
                                     (p) => p.done,
                                   );
