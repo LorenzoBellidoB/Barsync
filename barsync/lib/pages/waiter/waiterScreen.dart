@@ -1,8 +1,7 @@
 import 'package:barsync/models/tableModel.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:barsync/pages/waiter/createOrder.dart';
-import 'package:barsync/services/database/dataBaseManager.dart'
-    as dataBaseManager;
+import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:barsync/utils/sesion.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -290,9 +289,7 @@ class _WaiterScreenState extends State<WaiterScreen> {
                   ),
                   onPressed: () async {
                     final newDinners = int.tryParse(dinnersController.text);
-                    DocumentReference user = dataBaseManager.getUserById(
-                      Session().currentUser,
-                    );
+                    DocumentReference user = getUserById(Session().currentUser);
 
                     final table = selectedTable;
 
@@ -306,6 +303,31 @@ class _WaiterScreenState extends State<WaiterScreen> {
                             'waiter': user,
                           });
                       table.dinners = newDinners;
+                    }
+
+                    try {
+                      final querySnap =
+                          await FirebaseFirestore.instance
+                              .collection('bills')
+                              .where(
+                                'table',
+                                isEqualTo: getTableRefById(table?.id),
+                              )
+                              .where('state', isEqualTo: 'paid')
+                              .limit(1)
+                              .get();
+
+                      if (querySnap.docs.isNotEmpty) {
+                        final billDoc = querySnap.docs.first.reference;
+                        await billDoc.delete();
+                        print('Bill eliminada correctamente.');
+                      } else {
+                        print(
+                          'No se encontró una bill abierta para esta mesa.',
+                        );
+                      }
+                    } catch (e) {
+                      print('Error eliminando la bill: $e');
                     }
 
                     setState(() => selectedTable = null); // Cierra el panel

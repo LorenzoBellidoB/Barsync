@@ -1,3 +1,5 @@
+import 'package:barsync/components/billingScreen.dart';
+import 'package:barsync/models/billModel.dart';
 import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/models/productModel.dart';
 import 'package:barsync/models/productOrderModel.dart';
@@ -6,11 +8,9 @@ import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:barsync/utils/sesion.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:barsync/services/database/dataBaseManager.dart'
-    as databaseManager;
 
 class OrderScreen extends StatefulWidget {
-  final TableModel? table;
+  final TableModel table;
   const OrderScreen({Key? key, required this.table}) : super(key: key);
 
   @override
@@ -29,12 +29,15 @@ class _OrderScreenState extends State<OrderScreen>
 
   List<ProductOrderModel> orderProducts = [];
 
+  BillModel? _currentBill;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: eatTimes.length, vsync: this);
     _fetchCategories();
     _fetchProducts();
+    _fetchCurrentBill();
   }
 
   void _fetchCategories() async {
@@ -59,6 +62,48 @@ class _OrderScreenState extends State<OrderScreen>
             t: all.where((p) => p.eatTimes.contains(t)).toList(),
         };
       });
+    });
+  }
+
+  Future<void> _fetchCurrentBill() async {
+    if (widget.table == null) return;
+
+    final billSnap =
+        await FirebaseFirestore.instance
+            .collection('bills')
+            .where('table', isEqualTo: getTableRefById(widget.table.id))
+            .where('state', isEqualTo: 'open') // Look for an open bill
+            .limit(1)
+            .get();
+
+    if (billSnap.docs.isNotEmpty) {
+      setState(() {
+        _currentBill = BillModel.fromJson(
+          billSnap.docs.first.data(),
+          billSnap.docs.first.id,
+        );
+      });
+    } else {
+      // No open bill found, create a new one
+      _createNewBill();
+    }
+  }
+
+  Future<void> _createNewBill() async {
+    if (widget.table == null) return;
+
+    final newBill = BillModel(
+      table: getTableRefById(widget.table.id),
+      idRestaurant: Session().restaurantRef,
+      startTime: Timestamp.now(),
+      state: 'open',
+    );
+
+    final docRef = await FirebaseFirestore.instance
+        .collection('bills')
+        .add(newBill.toJson());
+    setState(() {
+      _currentBill = newBill..id = docRef.id;
     });
   }
 
@@ -90,8 +135,8 @@ class _OrderScreenState extends State<OrderScreen>
   ) async {
     final sizes = product.prices.keys.toList();
     final addons = product.addOns;
-    var selSizes = <String>{};
-    var selAddons = <String>{};
+    String? selSize; // Solo un tamaño seleccionado
+    Set<String> selAddons = {};
 
     return showModalBottomSheet<Map<String, List<String>>>(
       context: context,
@@ -103,7 +148,6 @@ class _OrderScreenState extends State<OrderScreen>
       builder:
           (_) => StatefulBuilder(
             builder: (context, setState) {
-              final allSizes = selSizes.length == sizes.length;
               final allAddons = selAddons.length == addons.length;
               return Padding(
                 padding: EdgeInsets.only(
@@ -117,7 +161,7 @@ class _OrderScreenState extends State<OrderScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Selecciona Tamaño(s)',
+                        'Selecciona Tamaño',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -128,39 +172,24 @@ class _OrderScreenState extends State<OrderScreen>
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: [
-                          ChoiceChip(
-                            label: Text(
-                              allSizes
-                                  ? 'Deseleccionar todos'
-                                  : 'Seleccionar todos',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            selected: allSizes,
-                            selectedColor: const Color(0xFF004C99),
-                            backgroundColor: const Color(0xFF2A2E3D),
-                            onSelected:
-                                (_) => setState(
-                                  () =>
-                                      selSizes = allSizes ? {} : sizes.toSet(),
-                                ),
-                          ),
-                          ...sizes.map(
-                            (s) => ChoiceChip(
-                              label: Text(
-                                s,
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              selected: selSizes.contains(s),
-                              selectedColor: const Color(0xFF004C99),
-                              backgroundColor: const Color(0xFF2A2E3D),
-                              onSelected:
-                                  (_) => setState(() {
-                                    if (!selSizes.remove(s)) selSizes.add(s);
-                                  }),
-                            ),
-                          ),
-                        ],
+                        children:
+                            sizes
+                                .map(
+                                  (s) => ChoiceChip(
+                                    label: Text(
+                                      s,
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    selected: selSize == s,
+                                    selectedColor: const Color(0xFF004C99),
+                                    backgroundColor: const Color(0xFF2A2E3D),
+                                    onSelected:
+                                        (_) => setState(() {
+                                          selSize = (selSize == s) ? null : s;
+                                        }),
+                                  ),
+                                )
+                                .toList(),
                       ),
                       const SizedBox(height: 24),
                       Text(
@@ -187,11 +216,9 @@ class _OrderScreenState extends State<OrderScreen>
                             selectedColor: const Color(0xFF004C99),
                             backgroundColor: const Color(0xFF2A2E3D),
                             onSelected:
-                                (_) => setState(
-                                  () =>
-                                      selAddons =
-                                          allAddons ? {} : addons.toSet(),
-                                ),
+                                (_) => setState(() {
+                                  selAddons = allAddons ? {} : addons.toSet();
+                                }),
                           ),
                           ...addons.map(
                             (a) => ChoiceChip(
@@ -219,10 +246,17 @@ class _OrderScreenState extends State<OrderScreen>
                             minimumSize: Size(60, 50),
                           ),
                           onPressed:
-                              () => Navigator.pop(context, {
-                                'sizes': selSizes.toList(),
-                                'addons': selAddons.toList(),
-                              }),
+                              () => Navigator.pop<Map<String, List<String>>>(
+                                context,
+                                {
+                                  'sizes':
+                                      selSize != null ? [selSize!] : <String>[],
+                                  'addons':
+                                      selAddons
+                                          .map((e) => e.toString())
+                                          .toList(),
+                                },
+                              ),
                           child: const Text(
                             'Aceptar',
                             style: TextStyle(
@@ -267,11 +301,11 @@ class _OrderScreenState extends State<OrderScreen>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Mesa: ${widget.table?.number}',
+                            'Mesa: ${widget.table.number}',
                             style: TextStyle(color: Colors.white),
                           ),
                           Text(
-                            'Comensales: ${widget.table?.dinners}',
+                            'Comensales: ${widget.table.dinners}',
                             style: TextStyle(color: Colors.white),
                           ),
                         ],
@@ -317,7 +351,12 @@ class _OrderScreenState extends State<OrderScreen>
                         runSpacing: 12,
                         children: [
                           ElevatedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              setState(() {
+                                orderProducts.clear();
+                              });
+                              Navigator.pop(context);
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Color.fromARGB(255, 153, 0, 0),
                               minimumSize: Size(110, 50),
@@ -328,36 +367,93 @@ class _OrderScreenState extends State<OrderScreen>
                             ),
                           ),
                           ElevatedButton(
-                            onPressed: () {
-                              OrderModel order = OrderModel(
-                                id: '',
-                                state: 'pendiente',
-                                time: Timestamp.now(),
-                                products: orderProducts,
-                                table: getTableRefById(widget.table?.id),
-                                idRestaurant: Session().restaurantRef,
-                                waiter: getUserById(Session().currentUser),
-                              );
-                              databaseManager.createOrder(order);
-                              print(order.toJson());
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              minimumSize: Size(160, 50),
+                            onPressed:
+                                orderProducts.isNotEmpty
+                                    ? () async {
+                                      if (_currentBill == null) {
+                                        print(
+                                          "Error: No bill found for this table.",
+                                        );
+                                        return;
+                                      }
+
+                                      // Create the order
+
+                                      OrderModel order = OrderModel(
+                                        id: '', // Firestore will assign an ID
+
+                                        state: 'pendiente',
+
+                                        time: Timestamp.now(),
+                                        products: orderProducts,
+
+                                        table: getTableRefById(widget.table.id),
+
+                                        idRestaurant: Session().restaurantRef,
+                                        waiter: getUserById(
+                                          Session().currentUser,
+                                        ),
+                                      );
+
+                                      final orderDocRef = await createOrder(
+                                        order,
+                                      );
+
+                                      // Update the current bill with the new order's reference
+
+                                      await FirebaseFirestore.instance
+                                          .collection('bills')
+                                          .doc(_currentBill!.id)
+                                          .update({
+                                            'orderRefs': FieldValue.arrayUnion([
+                                              orderDocRef,
+                                            ]),
+
+                                            'totalAmount':
+                                                _currentBill!.totalAmount +
+                                                _total(), // Update total
+                                          });
+
+                                      // Clear orderProducts for the next order
+
+                                      setState(() {
+                                        orderProducts.clear();
+
+                                        // Optionally, show a success message
+
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Comanda enviada y añadida a la cuenta!',
+                                            ),
+                                          ),
+                                        );
+
+                                        Navigator.pop(
+                                          context,
+                                        ); // Close the summary bottom sheet
+                                      });
+                                    }
+                                    : null,
+                            style: ButtonStyle(
+                              backgroundColor: WidgetStateProperty.resolveWith<
+                                Color?
+                              >((Set<WidgetState> states) {
+                                if (states.contains(WidgetState.disabled)) {
+                                  return Colors
+                                      .grey[400]; // Color cuando el botón está deshabilitado
+                                }
+                                return Colors
+                                    .green; // Color por defecto cuando el botón está habilitado
+                              }),
+                              foregroundColor: WidgetStateProperty.all(
+                                Colors.white,
+                              ), // Color del texto siempre blanco
                             ),
                             child: Text(
                               'Enviar Comanda',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                          ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              minimumSize: Size(110, 50),
-                            ),
-                            child: Text(
-                              'Pagar',
                               style: TextStyle(color: Colors.white),
                             ),
                           ),
@@ -401,211 +497,242 @@ class _OrderScreenState extends State<OrderScreen>
           tabs: eatTimes.map((t) => Tab(child: Text(t))).toList(),
         ),
       ),
-      body: Stack(
+      body: Column(
         children: [
-          TabBarView(
-            controller: _tabController,
-            children:
-                eatTimes.map((t) {
-                  final list = productsByTime[t] ?? [];
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children:
+                  eatTimes.map((t) {
+                    final list = productsByTime[t] ?? [];
 
-                  if (t == 'Comida') {
-                    final byCategory = <String, List<ProductModel>>{};
-                    for (var p in list) {
-                      final name =
-                          categoryNames[p.idCategory] ?? 'Sin categoría';
-                      byCategory.putIfAbsent(name, () => []).add(p);
-                    }
+                    if (t == 'Comida') {
+                      final byCategory = <String, List<ProductModel>>{};
+                      for (var p in list) {
+                        final name =
+                            categoryNames[p.idCategory] ?? 'Sin categoría';
+                        byCategory.putIfAbsent(name, () => []).add(p);
+                      }
 
-                    return ListView(
-                      padding: EdgeInsets.all(8),
-                      children:
-                          byCategory.entries.map((entry) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                    horizontal: 8,
-                                  ),
-                                  child: Text(
-                                    entry.key,
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                      return ListView(
+                        padding: EdgeInsets.all(8),
+                        children:
+                            byCategory.entries.map((entry) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                      horizontal: 8,
+                                    ),
+                                    child: Text(
+                                      entry.key,
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                GridView.builder(
-                                  shrinkWrap: true,
-                                  physics: NeverScrollableScrollPhysics(),
-                                  gridDelegate:
-                                      SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 3,
-                                        crossAxisSpacing: 4,
-                                        mainAxisSpacing: 4,
-                                        childAspectRatio: 3 / 4,
-                                      ),
-                                  itemCount: entry.value.length,
-                                  itemBuilder: (_, i) {
-                                    final product = entry.value[i];
-                                    return GestureDetector(
-                                      onTap: () => _addToOrder(product),
-                                      child: Card(
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
+                                  GridView.builder(
+                                    shrinkWrap: true,
+                                    physics: NeverScrollableScrollPhysics(),
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 3,
+                                          crossAxisSpacing: 4,
+                                          mainAxisSpacing: 4,
+                                          childAspectRatio: 3 / 4,
                                         ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: [
-                                            Expanded(
-                                              child:
-                                                  product.image.isNotEmpty
-                                                      ? ClipRRect(
-                                                        borderRadius:
-                                                            BorderRadius.vertical(
-                                                              top:
-                                                                  Radius.circular(
-                                                                    12,
-                                                                  ),
-                                                            ),
-                                                        child: Image.network(
-                                                          product.image,
-                                                          fit: BoxFit.cover,
-                                                        ),
-                                                      )
-                                                      : Container(
-                                                        color: Colors.grey[300],
-                                                        child: Icon(
-                                                          Icons.restaurant,
-                                                          size: 50,
-                                                          color: Colors.grey,
-                                                        ),
-                                                      ),
+                                    itemCount: entry.value.length,
+                                    itemBuilder: (_, i) {
+                                      final product = entry.value[i];
+                                      return GestureDetector(
+                                        onTap: () => _addToOrder(product),
+                                        child: Card(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
                                             ),
-                                            Padding(
-                                              padding: const EdgeInsets.all(
-                                                8.0,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              Expanded(
+                                                child:
+                                                    product.image.isNotEmpty
+                                                        ? ClipRRect(
+                                                          borderRadius:
+                                                              BorderRadius.vertical(
+                                                                top:
+                                                                    Radius.circular(
+                                                                      12,
+                                                                    ),
+                                                              ),
+                                                          child: Image.network(
+                                                            product.image,
+                                                            fit: BoxFit.cover,
+                                                          ),
+                                                        )
+                                                        : Container(
+                                                          color:
+                                                              Colors.grey[300],
+                                                          child: Icon(
+                                                            Icons.restaurant,
+                                                            size: 50,
+                                                            color: Colors.grey,
+                                                          ),
+                                                        ),
                                               ),
-                                              child: Text(
-                                                product.name,
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 12,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
+                                              Padding(
+                                                padding: const EdgeInsets.all(
+                                                  8.0,
+                                                ),
+                                                child: Text(
+                                                  product.name,
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            );
-                          }).toList(),
-                    );
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: GridView.builder(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 4,
-                        mainAxisSpacing: 4,
-                        childAspectRatio: 3 / 4,
-                      ),
-                      itemCount: list.length,
-                      itemBuilder: (_, i) {
-                        final product = list[i];
-                        return GestureDetector(
-                          onTap: () => _addToOrder(product),
-                          child: Card(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child:
-                                      product.image.isNotEmpty
-                                          ? ClipRRect(
-                                            borderRadius: BorderRadius.vertical(
-                                              top: Radius.circular(12),
-                                            ),
-                                            child: Image.network(
-                                              product.image,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          )
-                                          : Container(
-                                            color: Colors.grey[300],
-                                            child: Icon(
-                                              Icons.restaurant,
-                                              size: 50,
-                                              color: Colors.grey,
-                                            ),
+                                            ],
                                           ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Text(
-                                    product.name,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                      overflow: TextOverflow.ellipsis,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                      );
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: GridView.builder(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 4,
+                          mainAxisSpacing: 4,
+                          childAspectRatio: 3 / 4,
+                        ),
+                        itemCount: list.length,
+                        itemBuilder: (_, i) {
+                          final product = list[i];
+                          return GestureDetector(
+                            onTap: () => _addToOrder(product),
+                            child: Card(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child:
+                                        product.image.isNotEmpty
+                                            ? ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.vertical(
+                                                    top: Radius.circular(12),
+                                                  ),
+                                              child: Image.network(
+                                                product.image,
+                                                fit: BoxFit.cover,
+                                              ),
+                                            )
+                                            : Container(
+                                              color: Colors.grey[300],
+                                              child: Icon(
+                                                Icons.restaurant,
+                                                size: 50,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text(
+                                      product.name,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                }).toList(),
-          ),
-
-          // —— AQUÍ SOLO HE AÑADIDO ESTE BOTÓN ——
-          if (orderProducts.isNotEmpty)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  top: 12,
-                  right: 12,
-                  left: 12,
-                  bottom: 48,
-                ),
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: Size(double.infinity, 50),
-                    backgroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  onPressed: _showOrderSummary,
-                  child: Text(
-                    "Ver Comanda (${orderProducts.length})",
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ),
-              ),
+                          );
+                        },
+                      ),
+                    );
+                  }).toList(),
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(
+              right: 12,
+              left: 12,
+              bottom: 48,
+              top: 8,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: Size(double.infinity, 50),
+                      backgroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    onPressed: _showOrderSummary,
+                    child: Text(
+                      "Ver Comanda (${orderProducts.length})",
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => BillingScreen(table: widget.table),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: Size(double.infinity, 50), // 👈 misma altura
+                      backgroundColor: Colors.blue,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          20,
+                        ), // 👈 mismo estilo
+                      ),
+                    ),
+                    child: Text(
+                      'Pagar Cuenta',
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

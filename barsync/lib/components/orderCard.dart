@@ -87,7 +87,7 @@ class _OrderCardState extends State<OrderCard> {
       case 'listo':
         headerColor = const Color.fromARGB(255, 224, 52, 0);
         footerColor = const Color.fromARGB(255, 160, 37, 0);
-        buttonText = 'Borrar';
+        buttonText = '';
         break;
       default:
         headerColor = Colors.grey;
@@ -311,7 +311,34 @@ class _OrderCardState extends State<OrderCard> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: widget.onButtonPressed,
+              onPressed: () async {
+                String newState;
+
+                switch (widget.comanda.state.toLowerCase()) {
+                  case 'pendiente':
+                    newState = 'en_preparacion';
+                    break;
+                  case 'en_preparacion':
+                    newState = 'listo';
+                    break;
+                  default:
+                    return;
+                }
+
+                // Actualiza el estado en Firestore
+                await FirebaseFirestore.instance
+                    .collection('orders')
+                    .doc(widget.comanda.id)
+                    .update({'state': newState});
+
+                // También puedes actualizar el estado local si lo necesitas
+                setState(() {
+                  widget.comanda.state = newState;
+                });
+
+                widget.onButtonPressed();
+              },
+
               style: ElevatedButton.styleFrom(
                 backgroundColor: footerColor,
                 shape: const RoundedRectangleBorder(
