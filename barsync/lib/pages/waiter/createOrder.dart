@@ -118,7 +118,7 @@ class _OrderScreenState extends State<OrderScreen>
       for (var size in selectedSizes) {
         orderProducts.add(
           ProductOrderModel(
-            id: product.id,
+            id: '',
             name: product.name,
             addOns: selectedAddOns,
             price: {size: product.prices[size] ?? 0.0},

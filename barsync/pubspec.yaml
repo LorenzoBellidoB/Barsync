@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  print_bluetooth_thermal: ^1.1.6
+  flutter_blue_plus: ^1.35.4
+  esc_pos_utils_plus: ^2.0.4
   firebase_core: ^3.12.1
   firebase_auth: ^5.5.2
   firebase_messaging: ^15.2.5

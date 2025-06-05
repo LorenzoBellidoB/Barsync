@@ -1,5 +1,6 @@
+import 'dart:ui';
+
 import 'package:barsync/models/billModel.dart';
-import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/models/productOrderModel.dart';
 import 'package:barsync/models/tableModel.dart';
 import 'package:barsync/pages/waiter/waiterScreen.dart';
@@ -8,7 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class BillingScreen extends StatefulWidget {
-  final TableModel table; // Pass the table model to the billing screen
+  final TableModel table;
 
   const BillingScreen({Key? key, required this.table}) : super(key: key);
 
@@ -28,9 +29,8 @@ class _BillingScreenState extends State<BillingScreen> {
   }
 
   Future<void> _fetchBillDetails() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
+
     try {
       final billSnap =
           await FirebaseFirestore.instance
@@ -46,46 +46,38 @@ class _BillingScreenState extends State<BillingScreen> {
           billSnap.docs.first.id,
         );
 
-        List<ProductOrderModel> tempProducts = [];
-
+        _allProductsInBill.clear();
         for (DocumentReference orderRef in _bill!.orderRefs) {
           final orderSnap = await orderRef.get();
-          if (orderSnap.exists) {
-            final orderData = orderSnap.data() as Map<String, dynamic>;
+          if (!orderSnap.exists) continue;
 
-            // Aquí vamos a procesar productos individualmente
-            final List<ProductOrderModel> products = [];
-            final dynamic rawProducts = orderData['products'];
+          final orderData = orderSnap.data() as Map<String, dynamic>;
+          final rawProducts = orderData['products'];
 
-            if (rawProducts is List) {
-              for (final item in rawProducts) {
-                if (item is DocumentReference) {
-                  final productSnap = await item.get();
-                  if (productSnap.exists) {
-                    final productData =
-                        productSnap.data() as Map<String, dynamic>;
-                    products.add(ProductOrderModel.fromJson(productData));
-                  }
-                } else if (item is Map<String, dynamic>) {
-                  products.add(ProductOrderModel.fromJson(item));
-                } else {
-                  print('Producto no válido: $item');
+          if (rawProducts is List) {
+            for (final item in rawProducts) {
+              if (item is DocumentReference) {
+                final productSnap = await item.get();
+                if (productSnap.exists) {
+                  final productData =
+                      productSnap.data() as Map<String, dynamic>;
+                  _allProductsInBill.add(
+                    ProductOrderModel.fromJson(productData),
+                  );
                 }
+              } else if (item is Map<String, dynamic>) {
+                _allProductsInBill.add(ProductOrderModel.fromJson(item));
               }
             }
-
-            _allProductsInBill.addAll(products);
           }
         }
       } else {
-        _bill = null; // No open bill found
+        _bill = null;
       }
     } catch (e) {
       print("Error fetching bill details: $e");
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -101,27 +93,52 @@ class _BillingScreenState extends State<BillingScreen> {
       return;
     }
 
-    // In a real app, you'd integrate with a payment gateway here.
-    // For now, we'll simulate successful payment.
     try {
+      // 1) Marcamos factura como “paid”
+      final totalAPagar = _calculateBillTotal();
       await FirebaseFirestore.instance
           .collection('bills')
           .doc(_bill!.id)
           .update({
             'state': 'paid',
             'endTime': Timestamp.now(),
-            'totalAmount': _calculateBillTotal(),
+            'totalAmount': totalAPagar,
           });
 
+      // 2) Marcamos mesa como “libre”
       await FirebaseFirestore.instance
           .collection('tables')
           .doc(widget.table.id)
           .update({'state': 'libre'});
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Pago procesado con éxito!')));
-      Navigator.push(
+      // 3) Borramos órdenes y productos asociados usando batch
+      final WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      for (DocumentReference orderRef in _bill!.orderRefs) {
+        final orderSnap = await orderRef.get();
+        if (!orderSnap.exists) continue;
+
+        final orderData = orderSnap.data() as Map<String, dynamic>;
+        final rawProducts = orderData['products'];
+
+        if (rawProducts is List) {
+          for (final item in rawProducts) {
+            if (item is DocumentReference) {
+              batch.delete(item);
+            }
+          }
+        }
+
+        batch.delete(orderRef);
+      }
+
+      await batch.commit();
+
+      // 4) Notificación de éxito y volver a lista de camareros
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Pago procesado y datos borrados con éxito!')),
+      );
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => WaiterScreen()),
       );
@@ -173,9 +190,7 @@ class _BillingScreenState extends State<BillingScreen> {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4.0),
                     child: Row(
-                      crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start, // Alinear arriba para que el precio esté alineado
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Column(
@@ -204,7 +219,7 @@ class _BillingScreenState extends State<BillingScreen> {
                             ],
                           ),
                         ),
-                        SizedBox(width: 8), // Espacio entre columna y precio
+                        SizedBox(width: 8),
                         Text(
                           '\$${product.price.values.first.toStringAsFixed(2)}',
                           style: TextStyle(fontSize: 16, color: Colors.black),

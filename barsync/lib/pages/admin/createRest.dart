@@ -627,6 +627,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                 return;
                               }
                               createRestaurant();
+                              Navigator.pop(context);
                             },
                             icon: const Icon(
                               Icons.add_business,

@@ -5,6 +5,8 @@ import 'package:barsync/utils/sesion.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../../models/tableModel.dart';
+
 class WaiterScreen extends StatefulWidget {
   final DocumentReference restaurantRef = Session().restaurantRef;
 
@@ -12,8 +14,24 @@ class WaiterScreen extends StatefulWidget {
   State<WaiterScreen> createState() => _WaiterScreenState();
 }
 
-class _WaiterScreenState extends State<WaiterScreen> {
+class _WaiterScreenState extends State<WaiterScreen>
+    with SingleTickerProviderStateMixin {
   TableModel? _selectedTable;
+
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Creamos un TabController para dos pestañas: "Mesas" y "Barra"
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   void _selectTable(TableModel table) {
     setState(() => _selectedTable = table);
@@ -21,6 +39,28 @@ class _WaiterScreenState extends State<WaiterScreen> {
 
   void _clearSelection() {
     setState(() => _selectedTable = null);
+  }
+
+  bool _shouldShowPanel() {
+    if (_selectedTable == null) return false;
+    final table = _selectedTable!;
+    final currentUser = Session().currentUser;
+    return table.state != 'ocupado' || table.waiter?.id == currentUser.id;
+  }
+
+  void _onTableTap(TableModel table) {
+    final currentUser = Session().currentUser;
+
+    if (table.state == 'ocupado' && table.waiter?.id == currentUser.id) {
+      // Si el camarero actual atiende esa mesa, va directamente a la orden
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => OrderScreen(table: table)),
+      );
+    } else if (table.state != 'ocupado') {
+      // Si no está ocupada, la selecciona para abrir panel
+      _selectTable(table);
+    }
   }
 
   @override
@@ -53,6 +93,11 @@ class _WaiterScreenState extends State<WaiterScreen> {
             ),
           ),
         ),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          tabs: const [Tab(text: 'Mesas'), Tab(text: 'Barra')],
+        ),
       ),
       body: Column(
         children: [
@@ -68,36 +113,75 @@ class _WaiterScreenState extends State<WaiterScreen> {
                         .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return const Center(child: Text('Error al cargar mesas'));
+                    return const Center(child: Text('Error al cargar datos'));
                   }
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  final tables =
+                  // Obtenemos la lista completa y la separamos en mesas y taburetes
+                  final allTables =
                       snapshot.data!.docs.map((doc) {
                         final data = doc.data() as Map<String, dynamic>;
                         return TableModel.fromJson({...data, 'id': doc.id});
                       }).toList();
 
-                  return GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
-                          childAspectRatio: 1,
-                        ),
-                    itemCount: tables.length,
-                    itemBuilder: (context, index) {
-                      return GestureDetector(
-                        onTap: () => _onTableTap(tables[index]),
-                        child: _TableWidget(
-                          table: tables[index],
-                          isSelected: _selectedTable?.id == tables[index].id,
-                        ),
-                      );
-                    },
+                  final mesas =
+                      allTables
+                          .where((t) => t.type.toLowerCase() == 'mesa')
+                          .toList();
+                  final taburetes =
+                      allTables
+                          .where((t) => t.type.toLowerCase() == 'taburete')
+                          .toList();
+
+                  return TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // Pestaña "Mesas"
+                      GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              mainAxisSpacing: 16,
+                              crossAxisSpacing: 16,
+                              childAspectRatio: 1,
+                            ),
+                        itemCount: mesas.length,
+                        itemBuilder: (context, index) {
+                          final table = mesas[index];
+                          return GestureDetector(
+                            onTap: () => _onTableTap(table),
+                            child: _TableWidget(
+                              table: table,
+                              isSelected: _selectedTable?.id == table.id,
+                            ),
+                          );
+                        },
+                      ),
+
+                      // Pestaña "Barra" (mostramos solo taburetes con forma circular)
+                      GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              mainAxisSpacing: 16,
+                              crossAxisSpacing: 16,
+                              childAspectRatio: 1,
+                            ),
+                        itemCount: taburetes.length,
+                        itemBuilder: (context, index) {
+                          final stool = taburetes[index];
+                          return GestureDetector(
+                            onTap: () => _onTableTap(stool),
+                            child: _StoolWidget(
+                              table: stool,
+                              isSelected: _selectedTable?.id == stool.id,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   );
                 },
               ),
@@ -110,30 +194,9 @@ class _WaiterScreenState extends State<WaiterScreen> {
       ),
     );
   }
-
-  bool _shouldShowPanel() {
-    if (_selectedTable == null) return false;
-    final table = _selectedTable!;
-    final currentUser = Session().currentUser;
-    return table.state != 'ocupado' || table.waiter?.id == currentUser.id;
-  }
-
-  void _onTableTap(TableModel table) {
-    final currentUser = Session().currentUser;
-
-    if (table.state == 'ocupado' && table.waiter?.id == currentUser.id) {
-      // Si el camarero actual atiende esa mesa, va directamente a la orden
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => OrderScreen(table: table)),
-      );
-    } else if (table.state != 'ocupado') {
-      // Si no está ocupada, la selecciona para abrir panel
-      _selectTable(table);
-    }
-  }
 }
 
+// Widget para mesas (cruz + círculo central)
 class _TableWidget extends StatelessWidget {
   final TableModel table;
   final bool isSelected;
@@ -207,6 +270,46 @@ class _TableWidget extends StatelessWidget {
   }
 }
 
+// Widget específico para taburetes: solo círculo y número
+class _StoolWidget extends StatelessWidget {
+  final TableModel table;
+  final bool isSelected;
+
+  const _StoolWidget({Key? key, required this.table, this.isSelected = false})
+    : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = constraints.maxWidth;
+        final selected = isSelected;
+        final color = _TableColor.getColor(
+          dinners: table.dinners,
+          state: table.state,
+          selected: selected,
+        );
+
+        return Center(
+          child: Container(
+            width: size * 0.6,
+            height: size * 0.6,
+            decoration: BoxDecoration(
+              color: selected ? color.withAlpha(6) : color,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '${table.number}',
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _TableColor {
   static Color getColor({
     required int dinners,
@@ -261,6 +364,7 @@ class __BottomPanelState extends State<_BottomPanel> {
   Widget build(BuildContext context) {
     final table = widget.table;
     final isReserved = table.state == 'reservado';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -272,7 +376,7 @@ class __BottomPanelState extends State<_BottomPanel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(table.number, isReserved),
+            _buildHeader(table),
             const SizedBox(height: 16),
             _buildDinnersField(),
             const SizedBox(height: 24),
@@ -284,11 +388,12 @@ class __BottomPanelState extends State<_BottomPanel> {
     );
   }
 
-  Widget _buildHeader(int number, bool isReserved) {
+  Widget _buildHeader(TableModel t) {
     return Row(
       children: [
         Text(
-          'Mesa $number ${isReserved ? "(Reservado)" : ""}',
+          '${t.type} ${t.number} ${t.state == "Reservado" ? "(Reservado)" : ""}',
+
           style: const TextStyle(
             color: Colors.white,
             fontSize: 18,
@@ -332,6 +437,7 @@ class __BottomPanelState extends State<_BottomPanel> {
 
   Widget _buildActionButton(TableModel table) {
     final isReserved = table.state == 'reservado';
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -412,7 +518,7 @@ class __BottomPanelState extends State<_BottomPanel> {
         await querySnap.docs.first.reference.delete();
       }
     } catch (e) {
-      // Podrías agregar un log o mostrar un snack si lo deseas
+      // Opcional: mostrar un snack o log
     }
 
     widget.onClose();

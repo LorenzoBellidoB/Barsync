@@ -5,6 +5,7 @@ class TableModel {
   int number;
   int dinners;
   String state;
+  String type;
   Map<String, double> location;
   DocumentReference idRestaurant;
   DocumentReference? waiter;
@@ -15,6 +16,7 @@ class TableModel {
     required this.number,
     this.dinners = 0,
     this.state = 'libre',
+    required this.type,
     required this.location,
     required this.idRestaurant,
     this.waiter,
@@ -32,6 +34,7 @@ class TableModel {
       number: json['number'] ?? 0,
       dinners: json['dinners'] ?? 0,
       state: json['state'] ?? 'libre',
+      type: json['type'] ?? 'mesa',
       location: loc,
       idRestaurant: json['restaurant'],
       waiter: json['waiter'],
@@ -44,6 +47,7 @@ class TableModel {
       'number': number,
       'dinners': dinners,
       'state': state,
+      'type': type,
       'location': location,
       'restaurant': idRestaurant,
       'waiter': waiter,
