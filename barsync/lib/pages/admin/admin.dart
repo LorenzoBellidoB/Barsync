@@ -3,12 +3,10 @@ import 'dart:async';
 import 'package:barsync/components/alert.dart';
 import 'package:barsync/components/menu.dart';
 import 'package:barsync/models/restaurantModel.dart';
-import 'package:barsync/models/userModel.dart';
 import 'package:barsync/pages/admin/createRest.dart';
-import 'package:barsync/pages/login/login.dart';
-import 'package:barsync/services/auth/auth.dart';
-import 'package:barsync/services/database/dataBaseManager.dart'
-    as dataBaseManager;
+import 'package:barsync/pages/admin/editRest.dart';
+import 'package:barsync/services/database/dataBaseManager.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -31,25 +29,23 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   void listenToRestaurants() {
-    _restaurantSubscription = dataBaseManager
-        .listenToRestaurantsWithUsers()
-        .listen(
-          (fetchedRestaurants) {
-            if (mounted) {
-              setState(() {
-                restaurantes = fetchedRestaurants;
-              });
-            }
-          },
-          onError: (error) {
-            print('Error en el stream de restaurantes: $error');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error al escuchar los restaurantes')),
-              );
-            }
-          },
-        );
+    _restaurantSubscription = listenToRestaurantsWithUsers().listen(
+      (fetchedRestaurants) {
+        if (mounted) {
+          setState(() {
+            restaurantes = fetchedRestaurants;
+          });
+        }
+      },
+      onError: (error) {
+        print('Error en el stream de restaurantes: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al escuchar los restaurantes')),
+          );
+        }
+      },
+    );
   }
 
   @override
@@ -161,9 +157,100 @@ class _AdminScreenState extends State<AdminScreen> {
                                   DataCell(
                                     Row(
                                       children: [
-                                        iconButton(Icons.edit, () {}),
+                                        iconButton(Icons.edit, () {
+                                          // Navigator.push(
+                                          //   context,
+                                          //   MaterialPageRoute(
+                                          //     builder:
+                                          //         (context) => EditRestScreen(
+                                          //           restaurant: rest,
+                                          //         ),
+                                          //   ),
+                                          // );
+                                        }),
                                         SizedBox(width: 8),
-                                        iconButton(Icons.delete, () {}),
+                                        iconButton(Icons.delete, () {
+                                          try {
+                                            showDialog(
+                                              context: context,
+                                              barrierDismissible: false,
+                                              builder:
+                                                  (_) => CustomAlertDialog(
+                                                    title: 'Borrar Restaurante',
+                                                    message:
+                                                        '¿Está seguro de borrar ${rest.name}?',
+                                                    buttonText: 'Borrar',
+                                                    colorbg: Color.fromRGBO(
+                                                      23,
+                                                      23,
+                                                      34,
+                                                      1,
+                                                    ),
+                                                    buttonColor: Colors.orange,
+                                                    textColor: Colors.white,
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.of(
+                                                            context,
+                                                          ).pop();
+                                                        },
+
+                                                        style: TextButton.styleFrom(
+                                                          backgroundColor:
+                                                              Colors.orange,
+                                                          foregroundColor:
+                                                              Colors.white,
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  10,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: Text('Cancelar'),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          final firestore =
+                                                              FirebaseFirestore
+                                                                  .instance;
+                                                          final restaurantDoc =
+                                                              firestore
+                                                                  .collection(
+                                                                    'restaurants',
+                                                                  )
+                                                                  .doc(rest.id);
+                                                          deleteRestaurant(
+                                                            restaurantDoc,
+                                                          );
+                                                          Navigator.of(
+                                                            context,
+                                                          ).pop();
+                                                        },
+                                                        style: TextButton.styleFrom(
+                                                          backgroundColor:
+                                                              Colors.orange,
+                                                          foregroundColor:
+                                                              Colors.white,
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  10,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: Text('Borrar'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                            );
+                                          } catch (e) {
+                                            print(
+                                              "Error al obtener el restaurante $e",
+                                            );
+                                          }
+                                        }),
                                       ],
                                     ),
                                   ),

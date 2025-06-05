@@ -2,8 +2,7 @@ import 'dart:async';
 
 import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/models/productOrderModel.dart';
-import 'package:barsync/services/database/dataBaseManager.dart'
-    as dataBaseManager;
+import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:barsync/services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -135,7 +134,7 @@ class _OrderCardState extends State<OrderCard> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 FutureBuilder<int>(
-                  future: dataBaseManager.getTableNumber(widget.comanda),
+                  future: getTableNumber(widget.comanda),
                   builder: (context, snapshot) {
                     final tableNumber =
                         snapshot.data != null
@@ -231,6 +230,9 @@ class _OrderCardState extends State<OrderCard> {
                               Checkbox(
                                 value: group.every((p) => p.done),
                                 onChanged: (bool? value) async {
+                                  // Solo permite marcar, no desmarcar
+                                  if (group.every((p) => p.done)) return;
+
                                   final newValue = value ?? false;
 
                                   setState(() {
@@ -246,13 +248,16 @@ class _OrderCardState extends State<OrderCard> {
                                         .doc(item.id)
                                         .update({'done': newValue});
                                   }
+
                                   // 👇 Obtener el token del mesero
-                                  final waiterToken = await dataBaseManager
-                                      .getWaiterToken(widget.comanda);
+                                  final waiterToken = await getWaiterToken(
+                                    widget.comanda,
+                                  );
 
                                   if (waiterToken != null) {
-                                    final mesaNum = await dataBaseManager
-                                        .getTableNumber(widget.comanda);
+                                    final mesaNum = await getTableNumber(
+                                      widget.comanda,
+                                    );
 
                                     await NotificationService()
                                         .sendNotificationToToken(
@@ -271,8 +276,6 @@ class _OrderCardState extends State<OrderCard> {
                                     widget.onButtonPressed();
                                   }
                                 },
-                                activeColor: Colors.greenAccent,
-                                checkColor: Colors.black,
                               ),
                             ],
                           ),

@@ -1,13 +1,12 @@
 import 'dart:io';
 import 'package:barsync/components/imagePicker.dart';
 import 'package:barsync/models/productModel.dart';
+import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:barsync/utils/sesion.dart';
-import 'package:barsync/services/database/dataBaseManager.dart'
-    as databaseManager;
 
 class CreateProduct extends StatefulWidget {
   final DocumentReference categoryId;
@@ -64,10 +63,10 @@ class CreateProductState extends State<CreateProduct> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xFF171722),
       appBar: AppBar(
         elevation: 0,
-        automaticallyImplyLeading:
-            false, // Evita que Flutter reserve espacio para "leading"
+        automaticallyImplyLeading: false,
         flexibleSpace: SafeArea(
           child: Padding(
             padding: EdgeInsets.only(left: 20, top: 12),
@@ -91,20 +90,20 @@ class CreateProductState extends State<CreateProduct> {
             ),
           ),
         ),
-        backgroundColor: Color.fromRGBO(23, 23, 34, 1),
+        backgroundColor: Color(0xFF171722),
       ),
       body: Padding(
-        padding: EdgeInsets.only(top: 32, left: 20, right: 58),
+        padding: EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
-              // Nombre y Descripción en fila
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
-                      decoration: InputDecoration(labelText: 'Nombre'),
+                      decoration: _inputDecoration('Nombre'),
+                      style: TextStyle(color: Colors.white),
                       onSaved: (v) => name = v ?? '',
                       validator: (v) => v!.isEmpty ? 'Requerido' : null,
                     ),
@@ -112,29 +111,26 @@ class CreateProductState extends State<CreateProduct> {
                   SizedBox(width: 16),
                   Expanded(
                     child: TextFormField(
-                      decoration: InputDecoration(labelText: 'Descripción'),
+                      decoration: _inputDecoration('Descripción'),
+                      style: TextStyle(color: Colors.white),
                       onSaved: (v) => _description = v ?? '',
                     ),
                   ),
                 ],
               ),
-
               SizedBox(height: 16),
-
-              // Clase de producto
               DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Clase de Producto'),
+                decoration: _inputDecoration('Clase de Producto'),
+                dropdownColor: Color(0xFF232334),
+                style: TextStyle(color: Colors.white),
                 items:
-                    ['Desayuno', 'Comida', 'Cena', 'Cualquiera']
+                    ['Bebida', 'Entrantes', 'Comida', 'Otros']
                         .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                         .toList(),
                 onChanged: (v) => _productClass = v,
                 validator: (v) => v == null ? 'Selecciona una clase' : null,
               ),
-
-              SizedBox(height: 24),
-
-              // Sección de tamaños/complementos e imagen
+              SizedBox(height: 16),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -143,165 +139,231 @@ class CreateProductState extends State<CreateProduct> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Tamaños',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        CheckboxListTile(
-                          title: Text('Marcar todos'),
-                          value: !sizes.values.contains(false),
-                          onChanged: (all) {
-                            setState(() {
-                              for (var k in sizes.keys) {
-                                sizes[k] = all!;
-                              }
-                            });
-                          },
-                          controlAffinity: ListTileControlAffinity.leading,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        SizedBox(
-                          height: 145,
+                        _sectionCard(
+                          title: 'Tamaños',
                           child: Column(
-                            children:
-                                sizes.keys.map((size) {
-                                  return Row(
-                                    children: [
-                                      Checkbox(
-                                        value: sizes[size],
-                                        onChanged:
-                                            (b) => setState(
-                                              () => sizes[size] = b!,
-                                            ),
-                                      ),
-                                      Text(size),
-                                      SizedBox(width: 8),
-                                      if (sizes[size]!)
-                                        Expanded(
-                                          child: TextFormField(
-                                            controller: _priceControllers[size],
-                                            decoration: InputDecoration(
-                                              labelText: 'Precio',
-                                              isDense: true,
-                                            ),
-                                            keyboardType: TextInputType.number,
-                                            validator: (v) {
-                                              if (sizes[size]! &&
-                                                  (v == null ||
-                                                      double.tryParse(v) ==
-                                                          null)) {
-                                                return 'Inv.';
-                                              }
-                                              return null;
-                                            },
+                            children: [
+                              CheckboxListTile(
+                                activeColor: Colors.amber,
+                                checkColor: Colors.black,
+                                title: Text(
+                                  'Marcar todos',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                value: !sizes.values.contains(false),
+                                onChanged: (all) {
+                                  setState(() {
+                                    for (var k in sizes.keys) {
+                                      sizes[k] = all!;
+                                    }
+                                  });
+                                },
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                              ),
+                              ...sizes.keys.map((size) {
+                                return Row(
+                                  children: [
+                                    Checkbox(
+                                      value: sizes[size],
+                                      onChanged:
+                                          (val) => setState(
+                                            () => sizes[size] = val!,
                                           ),
+                                      checkColor: Colors.black,
+                                      activeColor: Colors.amber,
+                                    ),
+                                    Text(
+                                      size,
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    SizedBox(width: 8),
+                                    if (sizes[size]!)
+                                      Expanded(
+                                        child: TextFormField(
+                                          controller: _priceControllers[size],
+                                          decoration: _inputDecoration(
+                                            'Precio',
+                                          ),
+                                          keyboardType: TextInputType.number,
+                                          style: TextStyle(color: Colors.white),
+                                          validator: (v) {
+                                            if (sizes[size]! &&
+                                                (v == null ||
+                                                    double.tryParse(v) ==
+                                                        null)) {
+                                              return 'Inválido';
+                                            }
+                                            return null;
+                                          },
                                         ),
-                                    ],
-                                  );
-                                }).toList(),
+                                      ),
+                                  ],
+                                );
+                              }).toList(),
+                            ],
                           ),
                         ),
-
                         SizedBox(height: 16),
-
-                        Text(
-                          'Complementos',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        CheckboxListTile(
-                          title: Text('Marcar todos'),
-                          value: !extras.values.contains(false),
-                          onChanged: (all) {
-                            setState(() {
-                              for (var k in extras.keys) {
-                                extras[k] = all!;
-                              }
-                            });
-                          },
-                          controlAffinity: ListTileControlAffinity.leading,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        SizedBox(
-                          height: 120,
-                          child: Scrollbar(
-                            thumbVisibility: true,
-                            controller:
-                                _extrasScrollController, // <-- Pásalo aquí
-                            child: SingleChildScrollView(
-                              controller:
-                                  _extrasScrollController, // <-- Y aquí también
-                              child: Column(
-                                children:
-                                    extras.keys.map((ext) {
-                                      return CheckboxListTile(
-                                        title: Text(ext),
-                                        value: extras[ext],
-                                        onChanged:
-                                            (b) => setState(
-                                              () => extras[ext] = b!,
-                                            ),
-                                        controlAffinity:
-                                            ListTileControlAffinity.leading,
-                                        contentPadding: EdgeInsets.zero,
-                                      );
-                                    }).toList(),
+                        _sectionCard(
+                          title: 'Complementos',
+                          child: Column(
+                            children: [
+                              CheckboxListTile(
+                                activeColor: Colors.amber,
+                                checkColor: Colors.black,
+                                title: Text(
+                                  'Marcar todos',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                value: !extras.values.contains(false),
+                                onChanged: (all) {
+                                  setState(() {
+                                    for (var k in extras.keys) {
+                                      extras[k] = all!;
+                                    }
+                                  });
+                                },
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
                               ),
-                            ),
+                              SizedBox(
+                                height: 120,
+                                child: Scrollbar(
+                                  thumbVisibility: true,
+                                  controller: _extrasScrollController,
+                                  child: SingleChildScrollView(
+                                    controller: _extrasScrollController,
+                                    child: Column(
+                                      children:
+                                          extras.keys.map((ext) {
+                                            return CheckboxListTile(
+                                              activeColor: Colors.amber,
+                                              checkColor: Colors.black,
+                                              title: Text(
+                                                ext,
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              value: extras[ext],
+                                              onChanged:
+                                                  (val) => setState(
+                                                    () => extras[ext] = val!,
+                                                  ),
+                                              controlAffinity:
+                                                  ListTileControlAffinity
+                                                      .leading,
+                                            );
+                                          }).toList(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-
                   SizedBox(width: 16),
-
                   Expanded(
                     flex: 1,
-                    child: GestureDetector(
-                      onTap: () async {
-                        // final picked = await ImagePicker().pickImage(
-                        //   source: ImageSource.gallery,
-                        // );
-                        // if (picked != null) {
-                        //   setState(() => _imageFile = File(picked.path));
-                        // }
-                      },
-                      child: ImagePickerWidget(
-                        onImageSelected: (file) {
-                          setState(() {
-                            _imageFile = file;
-                          });
-                        },
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Column(
+                        spacing: 298,
+                        children: [
+                          ImagePickerWidget(
+                            onImageSelected: (file) {
+                              setState(() {
+                                _imageFile = file;
+                              });
+                            },
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              ElevatedButton.icon(
+                                icon: Icon(Icons.cancel, color: Colors.white),
+                                label: Text('Cancelar'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey[700],
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 12,
+                                  ),
+                                ),
+                                onPressed: () => Navigator.of(context).pop(),
+                              ),
+                              SizedBox(width: 16),
+                              ElevatedButton.icon(
+                                icon: Icon(Icons.check),
+                                label: Text('Crear'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.amber[700],
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 12,
+                                  ),
+                                ),
+                                onPressed: submitForm,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ],
               ),
-
-              SizedBox(height: 24),
-
-              // Botones
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  ElevatedButton.icon(
-                    icon: Icon(Icons.cancel),
-                    label: Text('Cancelar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    icon: Icon(Icons.check),
-                    label: Text('Crear'),
-                    onPressed: submitForm,
-                  ),
-                ],
-              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.white70),
+      filled: true,
+      fillColor: Colors.white10,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+
+  Widget _sectionCard({required String title, required Widget child}) {
+    return Card(
+      color: Color(0xFF232334),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: Colors.amber,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 8),
+            child,
+          ],
         ),
       ),
     );
@@ -325,19 +387,15 @@ class CreateProductState extends State<CreateProduct> {
       final selectedExtras =
           extras.entries.where((e) => e.value).map((e) => e.key).toList();
       String userId = Session().currentUser.id;
-
-      // 🔄 Esperar correctamente a que se suba la imagen
       String? url = await uploadImage(_imageFile, userId);
 
       if (url == null) {
-        // Mostrar error y cancelar
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error al subir la imagen.')));
         return;
       }
 
-      // Guardar imagen en colección 'images'
       await saveImageData(url, name, userId);
 
       ProductModel producto = ProductModel(
@@ -351,32 +409,29 @@ class CreateProductState extends State<CreateProduct> {
         prices: prices,
       );
 
-      final productRef = await databaseManager.addProduct(producto);
-
+      final productRef = await addProduct(producto);
       await widget.categoryId.update({
         'products': FieldValue.arrayUnion([productRef]),
       });
-
       Navigator.of(context).pop();
     }
   }
 
   Future<String?> uploadImage(File? file, String userId) async {
     try {
-      // Generar nombre único con timestamp:
-      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      Reference ref = FirebaseStorage.instance.ref().child(
-        'products/image/$fileName.jpg',
-      );
+      if (file == null || !file.existsSync()) {
+        return 'https://firebasestorage.googleapis.com/v0/b/barsync-68a03.firebasestorage.app/o/products%2Fimage%2FbarSyncApp.png?alt=media&token=cc4dda3f-3ff1-4357-b73e-71d728299891';
+      }
 
-      // Iniciar la carga del archivo:
-      UploadTask uploadTask = ref.putFile(file!);
+      String fileName =
+          '${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      Reference ref = FirebaseStorage.instance.ref().child(
+        'products/image/$fileName',
+      );
+      UploadTask uploadTask = ref.putFile(file);
       TaskSnapshot snapshot = await uploadTask;
-      // Una vez subido, obtener URL de descarga:
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-      return downloadUrl;
+      return await snapshot.ref.getDownloadURL();
     } on FirebaseException catch (e) {
-      // Manejar errores (ej. permisos, tamaño, etc)
       print('Error al subir imagen: $e');
       return null;
     }

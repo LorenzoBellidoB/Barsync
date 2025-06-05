@@ -3,8 +3,8 @@ import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/models/productModel.dart';
 import 'package:barsync/models/productOrderModel.dart';
 import 'package:barsync/models/restaurantModel.dart';
-import 'package:barsync/models/tableModel.dart';
 import 'package:barsync/models/userModel.dart';
+import 'package:barsync/services/auth/auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,14 +16,14 @@ DocumentReference<Object?> getUserById(UserModel user) {
 }
 
 Future<void> saveUser(UserModel user) async {
-  if (user.email.isEmpty || user.password.isEmpty || user.rol.isEmpty) {
+  if (user.email.isEmpty || user.rol.isEmpty) {
     throw Exception('Email, contraseña y rol son obligatorios.');
   }
 
   await FirebaseFirestore.instance.collection('users').add(user.toJson());
 }
 
-Future<void> saveUserWithRestaurant(
+Future<UserModel> saveUserWithRestaurant(
   UserModel user,
   DocumentReference restaurantRef,
 ) async {
@@ -36,6 +36,8 @@ Future<void> saveUserWithRestaurant(
   user.id = userRef.id;
 
   await userRef.set(user.toJson());
+
+  return user;
 }
 
 Stream<List<UserModel>> getUsers() {
@@ -44,7 +46,10 @@ Stream<List<UserModel>> getUsers() {
       .snapshots()
       .map(
         (snapshot) =>
-            snapshot.docs.map((doc) => UserModel.fromJson(doc.data())).toList(),
+            snapshot.docs.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return UserModel.fromJson(data, doc.id);
+            }).toList(),
       );
 }
 
@@ -53,10 +58,28 @@ Stream<List<UserModel>> getUsersByEmail(String email) {
       .collection('users')
       .where('email', isEqualTo: email)
       .snapshots()
-      .map(
-        (snapshot) =>
-            snapshot.docs.map((doc) => UserModel.fromJson(doc.data())).toList(),
-      );
+      .map((snapshot) {
+        return snapshot.docs.map((doc) {
+          final data = doc.data();
+          // Le pasamos tanto los datos como doc.id
+          return UserModel.fromJson(data, doc.id);
+        }).toList();
+      });
+}
+
+Stream<String> getUserIdByEmail(String email) {
+  return FirebaseFirestore.instance
+      .collection('users')
+      .where('email', isEqualTo: email)
+      .limit(1)
+      .snapshots()
+      .map((snapshot) {
+        if (snapshot.docs.isNotEmpty) {
+          return snapshot.docs.first.id;
+        } else {
+          throw Exception('No se encontró usuario con ese email');
+        }
+      });
 }
 
 Future<List<UserModel>> getUsersByRestaurantAndRole(
@@ -71,7 +94,10 @@ Future<List<UserModel>> getUsersByRestaurantAndRole(
             .where('rol', isEqualTo: rol)
             .get();
 
-    return snapshot.docs.map((doc) => UserModel.fromJson(doc.data())).toList();
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return UserModel.fromJson(data, doc.id);
+    }).toList();
   } catch (e) {
     print("Error al obtener usuarios: $e");
     return [];
@@ -91,17 +117,19 @@ Stream<List<RestaurantModel>> getRestaurants() {
       );
 }
 
-Stream<List<RestaurantModel>> getRestaurantByEmail(String email) {
-  return FirebaseFirestore.instance
-      .collection('restaurants')
-      .where('emailBoss', isEqualTo: email)
-      .snapshots()
-      .map(
-        (snapshot) =>
-            snapshot.docs
-                .map((doc) => RestaurantModel.fromJson(doc.data()))
-                .toList(),
-      );
+Future<DocumentReference> getRestaurantRefById(String id) async {
+  final snapshot =
+      await FirebaseFirestore.instance
+          .collection('restaurants')
+          .where('id', isEqualTo: id)
+          .limit(1)
+          .get();
+
+  if (snapshot.docs.isNotEmpty) {
+    return snapshot.docs.first.reference;
+  } else {
+    throw Exception('No se encontró restaurante con id: $id');
+  }
 }
 
 Future<String> saveRestaurant(RestaurantModel restaurant) async {
@@ -163,6 +191,34 @@ Future<void> updateUsersRestaurant(
     print('Referencias de usuarios añadidas al restaurante correctamente.');
   } catch (e) {
     print('Error al actualizar el restaurante: $e');
+  }
+}
+
+Future<void> deleteRestaurant(DocumentReference idRestaurante) async {
+  AuthService auth = new AuthService();
+  List<UserModel> bossList;
+  List<UserModel> waiters;
+  List<UserModel> cookers;
+  final firestore = FirebaseFirestore.instance;
+  try {
+    waiters = await getUsersByRestaurantAndRole(idRestaurante, 'Waiter');
+    cookers = await getUsersByRestaurantAndRole(idRestaurante, 'Cooker');
+    bossList = await getUsersByRestaurantAndRole(idRestaurante, 'Boss');
+
+    UserModel boss = bossList.first;
+    await firestore.collection('users').doc(boss.id).delete();
+    // await auth.deleteUserByEmail(boss.email); // Necesito permisos de firebase que no tengo
+    for (var w in waiters) {
+      await firestore.collection('users').doc(w.id).delete();
+      // await auth.deleteUserByEmail(w.email); // Necesito permisos de firebase que no tengo
+    }
+    for (var c in cookers) {
+      await firestore.collection('users').doc(c.id).delete();
+      // await auth.deleteUserByEmail(c.email); // Necesito permisos de firebase que no tengo
+    }
+    await idRestaurante.delete();
+  } catch (e) {
+    print('Error al borrar el restaurante: $e');
   }
 }
 
@@ -440,7 +496,7 @@ Stream<List<RestaurantModel>> listenToRestaurantsWithUsers() {
                   var userDoc = await ref.get();
                   if (userDoc.exists) {
                     var userData = userDoc.data() as Map<String, dynamic>;
-                    waitersList.add(UserModel.fromJson(userData));
+                    waitersList.add(UserModel.fromJson(userData, userDoc.id));
                   } else {
                     print('Waiter no encontrado: ${ref.id}');
                   }
@@ -458,7 +514,7 @@ Stream<List<RestaurantModel>> listenToRestaurantsWithUsers() {
                   var userDoc = await ref.get();
                   if (userDoc.exists) {
                     var userData = userDoc.data() as Map<String, dynamic>;
-                    cookersList.add(UserModel.fromJson(userData));
+                    cookersList.add(UserModel.fromJson(userData, userDoc.id));
                   } else {
                     print('Cooker no encontrado: ${ref.id}');
                   }
@@ -478,7 +534,6 @@ Stream<List<RestaurantModel>> listenToRestaurantsWithUsers() {
                 address: data['address'],
                 phone: data['phone'],
                 emailBoss: data['emailBoss'],
-                password: data['password'],
                 date: data['date'],
                 waiters: waitersList,
                 cookers: cookersList,
@@ -491,6 +546,18 @@ Stream<List<RestaurantModel>> listenToRestaurantsWithUsers() {
 
         return fetchedRestaurants;
       });
+}
+
+Future<bool> usersDuplicated(String email) async {
+  bool res = true;
+  List<UserModel> users = getUsers() as List<UserModel>;
+
+  for (UserModel u in users) {
+    if (u.email == email) {
+      res = false;
+    }
+  }
+  return res;
 }
 
 Future<int> getTableNumber(OrderModel comanda) async {
@@ -589,70 +656,41 @@ Future<void> updateProductsOrder(
   }
 }
 
-Future<void> createAuthUserAndSave(
+Future<UserModel> createOrUpdateAuthUserAndSave(
   UserModel user,
   DocumentReference restRef,
 ) async {
+  UserModel userFull = user;
+
   try {
-    // Crear usuario en Firebase Auth
+    // Intentar crear usuario en Firebase Auth
     final UserCredential userCredential = await FirebaseAuth.instance
-        .createUserWithEmailAndPassword(
-          email: user.email,
-          password: user.password,
-        );
+        .createUserWithEmailAndPassword(email: user.email, password: '123456');
 
     // Enviar verificación por correo
     await userCredential.user?.sendEmailVerification();
 
     // Guardar datos del usuario en Firestore
-    final userWithAuth = user.copyWith(
-      id: userCredential.user!.uid,
-      first_pass:
-          true, // Marcamos que es la primera contraseña (la por defecto)
-    );
+    final userWithAuth = user.copyWith(first_pass: true);
 
-    await saveUserWithRestaurant(userWithAuth, restRef);
-  } catch (e) {
-    print("❌ Error creando usuario Auth: $e");
-  }
-}
+    userFull = await saveUserWithRestaurant(userWithAuth, restRef);
+  } on FirebaseAuthException catch (e) {
+    if (e.code == 'email-already-in-use') {
+      // Usuario ya existe, solo actualizamos Firestore
 
-Future<void> loginUser(String email, String password) async {
-  try {
-    final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+      print('Usuario ya existe, actualizando Firestore...');
 
-    // Verificar si el email está verificado
-    if (!credential.user!.emailVerified) {
-      // Mostrar mensaje o reenviar verificación
-      print("⚠️ El correo no está verificado");
-      return;
-    }
-
-    // Obtener los datos del usuario desde Firestore
-    final userDoc =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(credential.user!.uid)
-            .get();
-
-    if (userDoc.exists) {
-      final userModel = UserModel.fromJson(userDoc.data()!);
-
-      if (userModel.first_pass) {
-        // Redirigir a pantalla para cambiar contraseña
-        print("⚠️ Usando contraseña por defecto. Obligar cambio.");
-        // Navega a la pantalla de cambio de contraseña
-      } else {
-        // Acceso normal
-        print("✅ Bienvenido ${userModel.name}");
-      }
+      userFull = await saveUserWithRestaurant(user, restRef);
+    } else {
+      print("❌ Error creando usuario Auth: $e");
+      rethrow;
     }
   } catch (e) {
-    print("❌ Error de login: $e");
+    print("❌ Error inesperado: $e");
+    rethrow;
   }
+
+  return userFull;
 }
 
 Future<void> updateProductDone(String productId, bool value) async {

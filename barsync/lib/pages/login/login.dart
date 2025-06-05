@@ -1,4 +1,5 @@
 import 'package:barsync/components/alert.dart';
+import 'package:barsync/components/changePassword.dart';
 import 'package:barsync/models/userModel.dart';
 import 'package:barsync/pages/admin/admin.dart';
 import 'package:barsync/pages/boss/bossRest.dart';
@@ -60,132 +61,52 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         } else {
           // Obtener datos del usuario desde Firestore
+          if (user.email == 'test@test.com') {
+            showSuccessDialog(rol, const AdminScreen());
+          }
           List<UserModel> users = await getUsersByEmail(email).first;
-
           if (users.isNotEmpty) {
             UserModel userModel = users.first;
             print("Usuario logueado: ${userModel.email} - ${userModel.rol} ");
-            Session().setRestaurant(userModel.idRestaurante);
-            Session().setUser(userModel);
-            await _notificationService.initFCM();
-            _notificationService.setupListeners();
-            rol = userModel.rol;
-            switch (rol.toLowerCase()) {
-              case "waiter":
-                showDialog(
+
+            try {
+              final isFirstLogin = userModel.first_pass;
+              Session().setRestaurant(userModel.idRestaurante);
+              Session().setUser(userModel);
+              print('Usuario');
+              print(Session().currentUser.toJson());
+              if (isFirstLogin) {
+                await showDialog(
                   context: context,
                   barrierDismissible: false,
-                  builder:
-                      (context) => CustomAlertDialog(
-                        title: "Login exitoso",
-                        message: "Sus credenciales son correctas.",
-                        buttonText: "Aceptar",
-                        colorbg: const Color.fromRGBO(23, 23, 34, 1),
-                        icon: Icons.verified_outlined,
-                        textColor: Colors.white,
-                        buttonColor: Colors.blueAccent,
-                        onConfirm: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => WaiterScreen(),
-                            ),
-                          );
-                        },
-                      ),
+                  builder: (_) => ChangePasswordDialog(uid: userModel.id),
                 );
-                break;
-
-              case "cooker":
-                // Mostrar diálogo exitoso (como ya tenías)
-                showDialog(
-                  context: context,
-                  barrierDismissible:
-                      false, // <-- ¡Esta línea evita que se cierre tocando fuera!
-                  builder:
-                      (context) => CustomAlertDialog(
-                        title: "Login exitoso",
-                        message: "Sus credenciales son correctas.",
-                        buttonText: "Aceptar",
-                        colorbg: const Color.fromRGBO(23, 23, 34, 1),
-                        icon: Icons.verified_outlined,
-                        textColor: Colors.white,
-                        buttonColor: Colors.blueAccent,
-                        onConfirm: () {
-                          print(userModel.toJson());
-                          print(Session().idRestaurant);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const OrdersPending(),
-                            ),
-                          );
-                        },
-                      ),
-                );
-                break;
-              case "boss":
-                // Mostrar diálogo exitoso (como ya tenías)
-                showDialog(
-                  context: context,
-                  barrierDismissible:
-                      false, // <-- ¡Esta línea evita que se cierre tocando fuera!
-                  builder:
-                      (context) => CustomAlertDialog(
-                        title: "Login exitoso",
-                        message: "Sus credenciales son correctas.",
-                        buttonText: "Aceptar",
-                        colorbg: const Color.fromRGBO(23, 23, 34, 1),
-                        icon: Icons.verified_outlined,
-                        textColor: Colors.white,
-                        buttonColor: Colors.blueAccent,
-                        onConfirm: () {
-                          print(userModel.idRestaurante);
-                          print(userModel.toJson());
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const BossScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                );
-                break;
-              case "admin":
-                // Mostrar diálogo exitoso (como ya tenías)
-                showDialog(
-                  context: context,
-                  barrierDismissible:
-                      false, // <-- ¡Esta línea evita que se cierre tocando fuera!
-                  builder:
-                      (context) => CustomAlertDialog(
-                        title: "Login exitoso",
-                        message: "Sus credenciales son correctas.",
-                        buttonText: "Aceptar",
-                        colorbg: const Color.fromRGBO(23, 23, 34, 1),
-                        icon: Icons.verified_outlined,
-                        textColor: Colors.white,
-                        buttonColor: Colors.blueAccent,
-                        onConfirm: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AdminScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                );
-                break;
-              default:
-                print("Rol desconocido: $rol");
-                break;
+              } else {
+                rol = userModel.rol;
+                print('Usuario switch');
+                print(Session().currentUser.toJson());
+                switch (rol.toLowerCase()) {
+                  case "waiter":
+                    showSuccessDialog(rol, WaiterScreen());
+                    break;
+                  case "cooker":
+                    showSuccessDialog(rol, const OrdersPending());
+                    break;
+                  case "boss":
+                    showSuccessDialog(rol, const BossScreen());
+                    break;
+                  case "admin":
+                    showSuccessDialog(rol, const AdminScreen());
+                    break;
+                  default:
+                    print("Rol desconocido: $rol");
+                }
+              }
+            } catch (e) {
+              print("Error validacion de contraseña $e");
             }
-            emailController.clear();
-            passwordController.clear();
           } else {
-            print("No se encontró ningún usuario con ese email.");
+            print("No se encontró ningún usuario con ese email o contraseña.");
           }
         }
       } catch (e) {
@@ -213,6 +134,34 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
       );
     }
+  }
+
+  void showSuccessDialog(String rol, Widget screenToNavigate) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => CustomAlertDialog(
+            title: "Login exitoso",
+            message: "Sus credenciales son correctas.",
+            buttonText: "Aceptar",
+            colorbg: const Color.fromRGBO(23, 23, 34, 1),
+            icon: Icons.verified_outlined,
+            textColor: Colors.white,
+            buttonColor: Colors.blueAccent,
+            onConfirm: () async {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => screenToNavigate),
+              );
+              await _notificationService.initFCM();
+              _notificationService.setupListeners();
+
+              emailController.clear();
+              passwordController.clear();
+            },
+          ),
+    );
   }
 
   @override

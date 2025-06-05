@@ -1,215 +1,249 @@
 import 'package:barsync/components/alert.dart';
 import 'package:barsync/components/menu.dart';
-import 'package:barsync/models/restaurantModel.dart';
-import 'package:barsync/models/userModel.dart';
 import 'package:barsync/pages/admin/admin.dart';
 import 'package:barsync/services/database/dataBaseManager.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barsync/models/userModel.dart';
+import 'package:barsync/models/restaurantModel.dart';
 
-class CreateRestScreen extends StatefulWidget {
-  const CreateRestScreen({super.key});
+class EditRestScreen extends StatefulWidget {
+  final RestaurantModel restaurant;
+
+  const EditRestScreen({Key? key, required this.restaurant}) : super(key: key);
 
   @override
-  State<CreateRestScreen> createState() => _CreateRestScreenState();
+  _EditRestScreenState createState() => _EditRestScreenState();
 }
 
-class _CreateRestScreenState extends State<CreateRestScreen> {
-  final Map<String, TextEditingController> restauranteControllers = {
-    'nombre': TextEditingController(),
-    'direccion': TextEditingController(),
-    'telefono': TextEditingController(),
-    'nombreJefe': TextEditingController(),
-    'email': TextEditingController(),
-  };
+class _EditRestScreenState extends State<EditRestScreen> {
+  // Controladores para los campos “generales” del restaurante
+  late final Map<String, TextEditingController> restauranteControllers;
+  late final TextEditingController _camarerosCountController;
+  late final TextEditingController _cocinerosCountController;
 
-  final TextEditingController _camarerosCountController =
-      TextEditingController();
-  final TextEditingController _cocinerosCountController =
-      TextEditingController();
-
-  final List<String> estados = ['Activo', 'Inactivo'];
-  String? estadoSeleccionado;
-
+  // Lista de mapas para crear dinámicamente campos de camareros / cocineros
   List<Map<String, TextEditingController>> camareros = [];
   List<Map<String, TextEditingController>> cocineros = [];
 
-  void updateDynamicFields() {
-    int camarerosCount = int.tryParse(_camarerosCountController.text) ?? 0;
-    int cocinerosCount = int.tryParse(_cocinerosCountController.text) ?? 0;
+  // Dropdown “Estado” (Activo / Inactivo)
+  final List<String> estados = ['Activo', 'Inactivo'];
+  String? estadoSeleccionado;
 
-    setState(() {
-      camareros = List.generate(camarerosCount, (_) {
-        return {
-          'nombre': TextEditingController(),
-          'email': TextEditingController(),
-          'rol': TextEditingController(text: 'Waiter'),
-        };
-      });
+  @override
+  void initState() {
+    super.initState();
 
-      cocineros = List.generate(cocinerosCount, (_) {
-        return {
-          'nombre': TextEditingController(),
-          'email': TextEditingController(),
-          'rol': TextEditingController(text: 'Cooker'),
-        };
-      });
-    });
-  }
+    // 1) Inicializo los controladores para los campos “fijos” del restaurante
+    restauranteControllers = {
+      'nombre': TextEditingController(text: widget.restaurant.name),
+      'direccion': TextEditingController(text: widget.restaurant.address),
+      'telefono': TextEditingController(text: widget.restaurant.phone),
+      'nombreJefe': TextEditingController(text: widget.restaurant.emailBoss),
+      'email': TextEditingController(text: widget.restaurant.emailBoss),
+      // Nota: en Creatión usabas 'email' para el jefe; aquí lo he puesto igual que emailBoss.
+      // Adáptalo si en tu modelo el email del jefe se guarda en otro campo.
+    };
 
-  bool validateFields() {
-    for (var key in restauranteControllers.keys) {
-      if (restauranteControllers[key]!.text.isEmpty) {
-        return false;
-      }
-    }
-    if (estadoSeleccionado == null) return false;
-    return true;
-  }
+    // 2) Inicializo el estado seleccionado según el modelo (bool → “Activo” / “Inactivo”)
+    estadoSeleccionado = widget.restaurant.state ? 'Activo' : 'Inactivo';
 
-  void createRestaurant() async {
-    RestaurantModel restaurant = RestaurantModel(
-      name: restauranteControllers['nombre']!.text,
-      date: Timestamp.now(),
-      state: estadoSeleccionado == 'Activo' ? true : false,
-      address: restauranteControllers['direccion']!.text,
-      phone: restauranteControllers['telefono']!.text,
-      emailBoss: restauranteControllers['email']!.text,
+    // 3) Inicializo los controladores de conteo de camareros / cocineros con la longitud actual
+    _camarerosCountController = TextEditingController(
+      text: widget.restaurant.waiters.length.toString(),
     );
-    try {
-      final firestore = FirebaseFirestore.instance;
-      // Guardar el restaurante
-      String idRestaurante = await saveRestaurant(restaurant);
-      print('Restaurante');
-      print(restaurant.toJson());
-      // Obtengo la referencia al restaurante
-      final restaurantDoc = firestore
-          .collection('restaurants')
-          .doc(idRestaurante);
-      // Crear camareros y cocineros del restaurante
-      createWaitersCookersBoss(restaurantDoc);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Restaurante y usuarios creados correctamente."),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      print(e);
-    }
-  }
-
-  void createWaitersCookersBoss(DocumentReference id) async {
-    List<UserModel> listUsers = [];
-
-    UserModel boss = UserModel(
-      id: '',
-      name: restauranteControllers['nombreJefe']!.text,
-      rol: 'Boss',
-      email: restauranteControllers['email']!.text,
-      register_date: Timestamp.now(),
-      idRestaurante: id,
-      fcmToken: '',
+    _cocinerosCountController = TextEditingController(
+      text: widget.restaurant.cookers.length.toString(),
     );
-    print(boss.toJson());
-    try {
-      if (await usersDuplicated(boss.email)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Jefe con email inválido."),
-            backgroundColor: Colors.red,
-          ),
-        );
-      } else {
-        await createOrUpdateAuthUserAndSave(boss, id);
-        print(boss.toJson());
-        listUsers.add(boss);
-      }
-    } catch (e) {
-      print(e);
+
+    // 4) Construyo las listas “camareros” y “cocineros” pre-rellenas con los datos existentes
+    for (var waiter in widget.restaurant.waiters) {
+      // Cada waiter es un UserModel
+      camareros.add({
+        'nombre': TextEditingController(text: waiter.name),
+        'email': TextEditingController(text: waiter.email),
+        'rol': TextEditingController(text: waiter.rol),
+      });
     }
-
-    print("CAMAREROS:");
-    for (var c in camareros) {
-      UserModel camarero = UserModel(
-        id: '',
-        name: c['nombre']!.text,
-        email: c['email']!.text,
-        rol: c['rol']!.text,
-        register_date: Timestamp.now(),
-        idRestaurante: id,
-        fcmToken: '',
-      );
-
-      try {
-        if (await usersDuplicated(camarero.email)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Camarero con email inválido."),
-              backgroundColor: Colors.red,
-            ),
-          );
-        } else {
-          await createOrUpdateAuthUserAndSave(camarero, id);
-          print(camarero.toJson());
-          listUsers.add(camarero);
-        }
-      } catch (e) {
-        print(e);
-      }
-    }
-
-    print("COCINEROS:");
-    for (var c in cocineros) {
-      UserModel cocinero = UserModel(
-        id: '',
-        name: c['nombre']!.text,
-        email: c['email']!.text,
-        rol: c['rol']!.text,
-        register_date: Timestamp.now(),
-        idRestaurante: id,
-        fcmToken: '',
-      );
-
-      try {
-        if (await usersDuplicated(cocinero.email)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Cocinero con email inválido."),
-              backgroundColor: Colors.red,
-            ),
-          );
-        } else {
-          await createOrUpdateAuthUserAndSave(cocinero, id);
-          print(cocinero.toJson());
-          listUsers.add(cocinero);
-        }
-      } catch (e) {
-        print(e);
-      }
-    }
-
-    try {
-      await updateUsersRestaurant(id, listUsers);
-    } catch (e) {
-      print('Error al actualizar restaurante: $e');
+    for (var cooker in widget.restaurant.cookers) {
+      cocineros.add({
+        'nombre': TextEditingController(text: cooker.name),
+        'email': TextEditingController(text: cooker.email),
+        'rol': TextEditingController(text: cooker.rol),
+      });
     }
   }
 
   @override
   void dispose() {
-    for (var c in camareros) {
-      c.forEach((_, controller) => controller.dispose());
-    }
-    for (var c in cocineros) {
-      c.forEach((_, controller) => controller.dispose());
-    }
-    for (var controller in restauranteControllers.values) {
-      controller.dispose();
+    // Descarto todos los TextEditingController
+    for (var c in restauranteControllers.values) {
+      c.dispose();
     }
     _camarerosCountController.dispose();
     _cocinerosCountController.dispose();
+    for (var map in camareros) {
+      map.values.forEach((c) => c.dispose());
+    }
+    for (var map in cocineros) {
+      map.values.forEach((c) => c.dispose());
+    }
     super.dispose();
+  }
+
+  // Recalcula dinámicamente cuántos campos de camareros / cocineros mostrar
+  void updateDynamicFields() {
+    final camCount = int.tryParse(_camarerosCountController.text) ?? 0;
+    final cocCount = int.tryParse(_cocinerosCountController.text) ?? 0;
+
+    setState(() {
+      // Ajusto la lista de camareros:
+      if (camCount < camareros.length) {
+        // Si disminuyó, libero controladores sobrantes y recorto la lista
+        for (int i = camCount; i < camareros.length; i++) {
+          camareros[i].values.forEach((c) => c.dispose());
+        }
+        camareros = camareros.sublist(0, camCount);
+      } else if (camCount > camareros.length) {
+        // Si aumentó, agrego nuevos controladores vacíos
+        final toAdd = camCount - camareros.length;
+        for (int i = 0; i < toAdd; i++) {
+          camareros.add({
+            'nombre': TextEditingController(),
+            'email': TextEditingController(),
+            'rol': TextEditingController(text: 'Waiter'),
+          });
+        }
+      }
+
+      // Ajusto la lista de cocineros:
+      if (cocCount < cocineros.length) {
+        for (int i = cocCount; i < cocineros.length; i++) {
+          cocineros[i].values.forEach((c) => c.dispose());
+        }
+        cocineros = cocineros.sublist(0, cocCount);
+      } else if (cocCount > cocineros.length) {
+        final toAdd = cocCount - cocineros.length;
+        for (int i = 0; i < toAdd; i++) {
+          cocineros.add({
+            'nombre': TextEditingController(),
+            'email': TextEditingController(),
+            'rol': TextEditingController(text: 'Cooker'),
+          });
+        }
+      }
+    });
+  }
+
+  bool validateFields() {
+    // Verifico campos básicos no vacíos
+    for (var key in restauranteControllers.keys) {
+      if (restauranteControllers[key]!.text.trim().isEmpty) {
+        return false;
+      }
+    }
+    if (estadoSeleccionado == null) return false;
+    // Verifico que cada camarero y cocinero tenga nombre y email:
+    for (var map in camareros) {
+      if (map['nombre']!.text.trim().isEmpty ||
+          map['email']!.text.trim().isEmpty) {
+        return false;
+      }
+    }
+    for (var map in cocineros) {
+      if (map['nombre']!.text.trim().isEmpty ||
+          map['email']!.text.trim().isEmpty) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<void> updateRestaurant() async {
+    final bool nuevoEstado = estadoSeleccionado == 'Activo';
+
+    final ref = await getRestaurantRefById(widget.restaurant.id);
+
+    // Construyo lista de UserModel para waiters
+    final List<UserModel> waitersList =
+        camareros.map((mapCtrl) {
+          final id = getUserIdByEmail(mapCtrl['email']!.text.trim());
+
+          return UserModel(
+            name: mapCtrl['nombre']!.text.trim(),
+            email: mapCtrl['email']!.text.trim(),
+            rol: mapCtrl['rol']!.text.trim(),
+            id: id.toString(),
+            fcmToken: '',
+            register_date: Timestamp.now(),
+            idRestaurante: ref,
+          );
+        }).toList();
+
+    // Construyo lista de UserModel para cookers
+    final List<UserModel> cookersList =
+        cocineros.map((mapCtrl) {
+          final id = getUserIdByEmail(mapCtrl['email']!.text.trim());
+
+          return UserModel(
+            name: mapCtrl['nombre']!.text.trim(),
+            email: mapCtrl['email']!.text.trim(),
+            rol: mapCtrl['rol']!.text.trim(),
+            id: id.toString(),
+            fcmToken: '',
+            register_date: Timestamp.now(),
+            idRestaurante: ref,
+          );
+        }).toList();
+
+    // Creo un RestaurantModel actualizado
+    final updated = RestaurantModel(
+      id: widget.restaurant.id,
+      name: restauranteControllers['nombre']!.text.trim(),
+      address: restauranteControllers['direccion']!.text.trim(),
+      phone: restauranteControllers['telefono']!.text.trim(),
+      emailBoss: restauranteControllers['email']!.text.trim(),
+      state: nuevoEstado,
+      date: widget.restaurant.date,
+      waiters: waitersList,
+      cookers: cookersList,
+      tables: widget.restaurant.tables,
+    );
+
+    try {
+      final docRef = FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(updated.id);
+
+      // Actualizo el restaurante
+      await docRef.update(updated.toJson());
+
+      // Ahora actualizo o creo usuarios (waiters y cookers)
+      for (var user in [...waitersList, ...cookersList]) {
+        await createOrUpdateAuthUserAndSave(user, ref);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Restaurante y usuarios actualizados correctamente."),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Navegar a AdminScreen o donde corresponda
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminScreen()),
+      );
+    } catch (e) {
+      print(e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error al actualizar: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget buildTextField(
@@ -224,7 +258,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
       obscureText: obscure,
       keyboardType: keyboardType,
       onChanged: onChanged,
-
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
@@ -287,23 +320,22 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
         ),
       ),
       body: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start, // Alinear al top
         children: [
-          // Menú lateral (reutilizamos tu widget Menu)
+          // Menú lateral
           Menu(role: 'Admin'),
 
-          // Contenido principal que aprovecha todo el ancho (menos margen)
+          // Contenido principal
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 36, bottom: 16),
+              padding: const EdgeInsets.symmetric(vertical: 16),
               child: Padding(
-                // Márgenes laterales en tablet: 16 px a cada lado
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Crear Restaurante',
+                      'Editar Restaurante',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -313,9 +345,9 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                     const SizedBox(height: 8),
                     const Divider(thickness: 1),
 
-                    // =======================================
-                    // Card: Datos generales del restaurante
-                    // =======================================
+                    // ==============================================================
+                    // Card: Datos generales del restaurante (precargados)
+                    // ==============================================================
                     Padding(
                       padding: const EdgeInsets.only(top: 8, bottom: 16),
                       child: Card(
@@ -421,7 +453,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                     ),
                                     const SizedBox(height: 20),
                                     buildTextField(
-                                      "Email",
+                                      "Email Jefe",
                                       restauranteControllers['email']!,
                                       keyboardType: TextInputType.emailAddress,
                                     ),
@@ -436,9 +468,9 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
 
                     const Divider(thickness: 1),
 
-                    // =========================================
-                    // Card: Conteo de camareros y cocineros
-                    // =========================================
+                    // ==============================================================
+                    // Card: Conteo de camareros y cocineros (pre-relleno)
+                    // ==============================================================
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Card(
@@ -468,7 +500,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                               // Columna Derecha
                               Expanded(
                                 child: buildTextField(
-                                  "Número de Camareros",
+                                  "Número de Cocineros",
                                   _cocinerosCountController,
                                   keyboardType: TextInputType.number,
                                   onChanged: (_) => updateDynamicFields(),
@@ -496,7 +528,8 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                         ),
                       ),
                       ...camareros.asMap().entries.map((entry) {
-                        final camarero = entry.value;
+                        final idx = entry.key;
+                        final mapCtrl = entry.value;
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Card(
@@ -514,8 +547,8 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                   // Nombre
                                   Expanded(
                                     child: buildTextField(
-                                      "Nombre ${entry.key + 1}",
-                                      camarero['nombre']!,
+                                      "Nombre ${idx + 1}",
+                                      mapCtrl['nombre']!,
                                     ),
                                   ),
 
@@ -524,8 +557,8 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                   // Email
                                   Expanded(
                                     child: buildTextField(
-                                      "Email ${entry.key + 1}",
-                                      camarero['email']!,
+                                      "Email ${idx + 1}",
+                                      mapCtrl['email']!,
                                       keyboardType: TextInputType.emailAddress,
                                     ),
                                   ),
@@ -553,7 +586,8 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                         ),
                       ),
                       ...cocineros.asMap().entries.map((entry) {
-                        final cocinero = entry.value;
+                        final idx = entry.key;
+                        final mapCtrl = entry.value;
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Card(
@@ -571,8 +605,8 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                   // Nombre
                                   Expanded(
                                     child: buildTextField(
-                                      "Nombre ${entry.key + 1}",
-                                      cocinero['nombre']!,
+                                      "Nombre ${idx + 1}",
+                                      mapCtrl['nombre']!,
                                     ),
                                   ),
 
@@ -581,8 +615,8 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                   // Email
                                   Expanded(
                                     child: buildTextField(
-                                      "Email ${entry.key + 1}",
-                                      cocinero['email']!,
+                                      "Email ${idx + 1}",
+                                      mapCtrl['email']!,
                                       keyboardType: TextInputType.emailAddress,
                                     ),
                                   ),
@@ -597,7 +631,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                     const SizedBox(height: 30),
 
                     // ====================================
-                    // Botones Crear / Cancelar
+                    // Botones Actualizar / Cancelar
                     // ====================================
                     Center(
                       child: Wrap(
@@ -605,7 +639,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                         runSpacing: 10,
                         children: [
                           // ===================
-                          // Botón Crear
+                          // Botón Actualizar
                           // ===================
                           ElevatedButton.icon(
                             onPressed: () {
@@ -616,9 +650,9 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                       (_) => CustomAlertDialog(
                                         title: 'Campos incompletos',
                                         message:
-                                            'Completa todos los campos antes de continuar.',
+                                            'Por favor, completa todos los campos antes de continuar.',
                                         buttonText: 'Aceptar',
-                                        colorbg: Color.fromRGBO(23, 23, 34, 1),
+                                        colorbg: Colors.black,
                                         icon: Icons.warning_amber_rounded,
                                         textColor: Colors.white,
                                         buttonColor: Colors.orange,
@@ -626,17 +660,17 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                 );
                                 return;
                               }
-                              createRestaurant();
+                              updateRestaurant();
                             },
                             icon: const Icon(
-                              Icons.add_business,
+                              Icons.save,
                               size: 22,
                               color: Colors.white,
                             ),
                             label: const Padding(
                               padding: EdgeInsets.only(left: 8),
                               child: Text(
-                                'Crear Restaurante',
+                                'Actualizar Restaurante',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
@@ -665,16 +699,13 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                           // ===================
                           ElevatedButton.icon(
                             onPressed: () {
-                              setState(() {
-                                camareros.clear();
-                                cocineros.clear();
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const AdminScreen(),
-                                  ),
-                                );
-                              });
+                              // Simplemente regreso a Admin sin guardar cambios
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AdminScreen(),
+                                ),
+                              );
                             },
                             icon: const Icon(
                               Icons.cancel_outlined,

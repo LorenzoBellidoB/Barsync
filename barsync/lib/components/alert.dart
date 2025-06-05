@@ -46,6 +46,7 @@ class CustomAlertDialog extends StatelessWidget {
                 child: Text(
                   title,
                   style: TextStyle(
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: buttonColor,
                   ),

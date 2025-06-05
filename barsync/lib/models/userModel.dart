@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserModel {
-  String id = '';
+  String id;
   String name;
   String rol;
   String email;
-  String password;
+  String fcmToken;
   bool first_pass = true;
   Timestamp register_date;
   DocumentReference<Object?> idRestaurante;
@@ -15,7 +15,7 @@ class UserModel {
     required this.name,
     required this.rol,
     required this.email,
-    required this.password,
+    required this.fcmToken,
     this.first_pass = true,
     required this.register_date,
     required this.idRestaurante,
@@ -28,7 +28,7 @@ class UserModel {
       'name': name,
       'rol': rol,
       'email': email,
-      'password': password,
+      'fcmToken': fcmToken,
       'first_pass': first_pass,
       'register_date': register_date,
       'idRestaurante': idRestaurante,
@@ -41,7 +41,7 @@ class UserModel {
     String? name,
     String? rol,
     String? email,
-    String? password,
+    String? fcmToken,
     bool? first_pass,
     Timestamp? register_date,
     DocumentReference<Object?>? idRestaurante,
@@ -51,14 +51,14 @@ class UserModel {
       name: name ?? this.name,
       rol: rol ?? this.rol,
       email: email ?? this.email,
-      password: password ?? this.password,
+      fcmToken: fcmToken ?? this.fcmToken,
       first_pass: first_pass ?? this.first_pass,
       register_date: register_date ?? this.register_date,
       idRestaurante: idRestaurante ?? this.idRestaurante,
     );
   }
 
-  factory UserModel.fromJson(Map<String, dynamic> json) {
+  factory UserModel.fromJson(Map<String, dynamic> json, String docId) {
     final rawRef = json['idRestaurante'];
 
     if (rawRef == null || rawRef is! DocumentReference) {
@@ -68,11 +68,11 @@ class UserModel {
     }
 
     return UserModel(
-      id: json['id'] ?? '',
+      id: docId,
       name: json['name'] ?? '',
       rol: json['rol'] ?? '',
       email: json['email'] ?? '',
-      password: json['password'] ?? '',
+      fcmToken: json['fcmToken'] ?? '',
       first_pass: json['first_pass'] ?? true,
       register_date: json['register_date'],
       idRestaurante:

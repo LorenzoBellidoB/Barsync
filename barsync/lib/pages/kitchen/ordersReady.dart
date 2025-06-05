@@ -4,11 +4,9 @@ import 'package:barsync/components/alert.dart';
 import 'package:barsync/components/orderCard.dart';
 import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/pages/kitchen/ordersPending.dart';
-import 'package:barsync/pages/kitchen/ordersReady.dart';
 import 'package:barsync/pages/login/login.dart';
 import 'package:barsync/services/auth/auth.dart';
-import 'package:barsync/services/database/dataBaseManager.dart'
-    as databaseManager;
+import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:barsync/utils/sesion.dart';
 import 'package:flutter/material.dart';
 
@@ -32,25 +30,23 @@ class _OrdersReadyState extends State<OrdersReady> {
   }
 
   void listenToOrders() {
-    _orderSubscription = databaseManager
-        .listenToOrdersReady(Session().restaurantRef)
-        .listen(
-          (fetchedOrders) {
-            if (mounted) {
-              setState(() {
-                comandas = fetchedOrders;
-              });
-            }
-          },
-          onError: (error) {
-            print('Error en el stream de orders: $error');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error al escuchar las orders')),
-              );
-            }
-          },
-        );
+    _orderSubscription = listenToOrdersReady(Session().restaurantRef).listen(
+      (fetchedOrders) {
+        if (mounted) {
+          setState(() {
+            comandas = fetchedOrders;
+          });
+        }
+      },
+      onError: (error) {
+        print('Error en el stream de orders: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al escuchar las orders')),
+          );
+        }
+      },
+    );
   }
 
   Future<String> getWaiterName(OrderModel order) async {

@@ -86,21 +86,6 @@ class Menu extends StatelessWidget {
                   style: TextButton.styleFrom(alignment: Alignment.centerLeft),
                 ),
               ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: TextButton.icon(
-                  onPressed: () {},
-                  icon: Icon(
-                    Icons.person,
-                    color: Color.fromRGBO(104, 104, 155, 1),
-                  ),
-                  label: Text(
-                    'Administración de Usuarios',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                  style: TextButton.styleFrom(alignment: Alignment.centerLeft),
-                ),
-              ),
             ],
 
             Spacer(), // Empuja el botón de abajo

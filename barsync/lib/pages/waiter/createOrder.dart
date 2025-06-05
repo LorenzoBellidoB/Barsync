@@ -21,7 +21,7 @@ class _OrderScreenState extends State<OrderScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final List<String> eatTimes = ['Bebida', 'Entrantes', 'Comida', 'Postres'];
+  final List<String> eatTimes = ['Bebida', 'Entrantes', 'Comida', 'Otros'];
 
   Map<String, List<ProductModel>> productsByTime = {};
 

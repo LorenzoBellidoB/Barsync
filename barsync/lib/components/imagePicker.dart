@@ -101,9 +101,14 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
             width: double.infinity,
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey),
-              color: Colors.grey[100],
+              color: const Color(0xFF171722),
             ),
-            child: Center(child: Text('No se ha seleccionado imagen')),
+            child: Center(
+              child: Text(
+                'No se ha seleccionado ninguna imagen',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
           ),
         ],
         const SizedBox(height: 8),
@@ -112,13 +117,16 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
           children: [
             ElevatedButton.icon(
               onPressed: () => _pickImage(ImageSource.gallery),
-              icon: Icon(Icons.photo_library),
-              label: Text('Galería'),
+              icon: Icon(Icons.photo_library, color: Color(0xFF171722)),
+              label: Text(
+                'Galería',
+                style: TextStyle(color: Color(0xFF171722)),
+              ),
             ),
             ElevatedButton.icon(
               onPressed: () => _pickImage(ImageSource.camera),
-              icon: Icon(Icons.camera_alt),
-              label: Text('Cámara'),
+              icon: Icon(Icons.camera_alt, color: Color(0xFF171722)),
+              label: Text('Cámara', style: TextStyle(color: Color(0xFF171722))),
             ),
           ],
         ),

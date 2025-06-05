@@ -2,6 +2,7 @@ import 'package:barsync/models/billModel.dart';
 import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/models/productOrderModel.dart';
 import 'package:barsync/models/tableModel.dart';
+import 'package:barsync/pages/waiter/waiterScreen.dart';
 import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -120,7 +121,10 @@ class _BillingScreenState extends State<BillingScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Pago procesado con éxito!')));
-      Navigator.pop(context); // Go back after payment
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => WaiterScreen()),
+      );
     } catch (e) {
       ScaffoldMessenger.of(
         context,

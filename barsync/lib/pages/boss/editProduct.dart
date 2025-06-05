@@ -1,11 +1,10 @@
 import 'dart:io';
 import 'package:barsync/components/imagePicker.dart';
 import 'package:barsync/models/productModel.dart';
+import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:barsync/services/database/dataBaseManager.dart'
-    as databaseManager;
 
 class EditProduct extends StatefulWidget {
   final ProductModel producto;
@@ -45,7 +44,6 @@ class EditProductState extends State<EditProduct> {
   @override
   void initState() {
     super.initState();
-
     name = widget.producto.name;
     _description = widget.producto.description ?? '';
     _productClass =
@@ -85,12 +83,13 @@ class EditProductState extends State<EditProduct> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xFF171722),
       appBar: AppBar(
         elevation: 0,
         automaticallyImplyLeading: false,
         flexibleSpace: SafeArea(
           child: Padding(
-            padding: EdgeInsets.only(left: 20.0, top: 12),
+            padding: EdgeInsets.only(left: 20, top: 12),
             child: Row(
               children: [
                 Image.asset(
@@ -111,29 +110,30 @@ class EditProductState extends State<EditProduct> {
             ),
           ),
         ),
-        backgroundColor: Color.fromRGBO(23, 23, 34, 1),
+        backgroundColor: Color(0xFF171722),
       ),
       body: Padding(
-        padding: EdgeInsets.only(top: 32, left: 20, right: 58),
+        padding: EdgeInsets.only(left: 20, right: 58),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
+              SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
-                    child: TextFormField(
+                    child: _styledTextField(
                       initialValue: name,
-                      decoration: InputDecoration(labelText: 'Nombre'),
+                      label: 'Nombre',
                       onSaved: (v) => name = v ?? '',
                       validator: (v) => v!.isEmpty ? 'Requerido' : null,
                     ),
                   ),
                   SizedBox(width: 16),
                   Expanded(
-                    child: TextFormField(
+                    child: _styledTextField(
                       initialValue: _description,
-                      decoration: InputDecoration(labelText: 'Descripción'),
+                      label: 'Descripción',
                       onSaved: (v) => _description = v ?? '',
                     ),
                   ),
@@ -142,7 +142,9 @@ class EditProductState extends State<EditProduct> {
               SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _productClass,
-                decoration: InputDecoration(labelText: 'Clase de Producto'),
+                decoration: _inputDecoration('Clase de Producto'),
+                dropdownColor: Color(0xFF232334),
+                style: TextStyle(color: Colors.white),
                 items:
                     ['Desayuno', 'Comida', 'Cena', 'Cualquiera']
                         .map((c) => DropdownMenuItem(value: c, child: Text(c)))
@@ -156,140 +158,149 @@ class EditProductState extends State<EditProduct> {
                 children: [
                   Expanded(
                     flex: 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Tamaños',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        CheckboxListTile(
-                          title: Text('Marcar todos'),
-                          value: !sizes.values.contains(false),
-                          onChanged: (all) {
+                    child: Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF232334),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _sectionTitle('Tamaños'),
+                          _checkAllTile(sizes, () {
                             setState(() {
-                              for (var k in sizes.keys) {
-                                sizes[k] = all!;
-                              }
+                              for (var k in sizes.keys) sizes[k] = true;
                             });
-                          },
-                          controlAffinity: ListTileControlAffinity.leading,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        SizedBox(
-                          height: 145,
-                          child: Column(
-                            children:
-                                sizes.keys.map((size) {
-                                  return Row(
-                                    children: [
-                                      Checkbox(
-                                        value: sizes[size],
-                                        onChanged:
-                                            (b) => setState(
-                                              () => sizes[size] = b!,
-                                            ),
-                                      ),
-                                      Text(size),
-                                      SizedBox(width: 8),
-                                      if (sizes[size]!)
-                                        Expanded(
-                                          child: TextFormField(
-                                            controller: _priceControllers[size],
-                                            decoration: InputDecoration(
-                                              labelText: 'Precio',
-                                              isDense: true,
-                                            ),
-                                            keyboardType: TextInputType.number,
-                                            validator: (v) {
-                                              if (sizes[size]! &&
-                                                  (v == null ||
-                                                      double.tryParse(v) ==
-                                                          null)) {
-                                                return 'Inv.';
-                                              }
-                                              return null;
-                                            },
-                                          ),
-                                        ),
-                                    ],
-                                  );
-                                }).toList(),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Complementos',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        CheckboxListTile(
-                          title: Text('Marcar todos'),
-                          value: !extras.values.contains(false),
-                          onChanged: (all) {
+                          }),
+                          ...sizes.keys.map((size) {
+                            return Row(
+                              children: [
+                                Checkbox(
+                                  value: sizes[size],
+                                  onChanged:
+                                      (b) => setState(() => sizes[size] = b!),
+                                  activeColor: Colors.amber,
+                                ),
+                                Text(
+                                  size,
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                SizedBox(width: 8),
+                                if (sizes[size]!)
+                                  Expanded(
+                                    child: TextFormField(
+                                      style: TextStyle(color: Colors.white),
+                                      controller: _priceControllers[size],
+                                      decoration: _inputDecoration('Precio'),
+                                      keyboardType: TextInputType.number,
+                                      validator: (v) {
+                                        if (sizes[size]! &&
+                                            (v == null ||
+                                                double.tryParse(v) == null)) {
+                                          return 'Inv.';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }),
+                          SizedBox(height: 16),
+                          _sectionTitle('Complementos'),
+                          _checkAllTile(extras, () {
                             setState(() {
-                              for (var k in extras.keys) {
-                                extras[k] = all!;
-                              }
+                              for (var k in extras.keys) extras[k] = true;
                             });
-                          },
-                          controlAffinity: ListTileControlAffinity.leading,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        SizedBox(
-                          height: 120,
-                          child: Scrollbar(
-                            thumbVisibility: true,
-                            controller: _extrasScrollController,
-                            child: SingleChildScrollView(
+                          }),
+                          SizedBox(
+                            height: 120,
+                            child: Scrollbar(
+                              thumbVisibility: true,
                               controller: _extrasScrollController,
-                              child: Column(
-                                children:
-                                    extras.keys.map((ext) {
-                                      return CheckboxListTile(
-                                        title: Text(ext),
-                                        value: extras[ext],
-                                        onChanged:
-                                            (b) => setState(
-                                              () => extras[ext] = b!,
+                              child: SingleChildScrollView(
+                                controller: _extrasScrollController,
+                                child: Column(
+                                  children:
+                                      extras.keys.map((ext) {
+                                        return CheckboxListTile(
+                                          title: Text(
+                                            ext,
+                                            style: TextStyle(
+                                              color: Colors.white,
                                             ),
-                                        controlAffinity:
-                                            ListTileControlAffinity.leading,
-                                        contentPadding: EdgeInsets.zero,
-                                      );
-                                    }).toList(),
+                                          ),
+                                          value: extras[ext],
+                                          onChanged:
+                                              (b) => setState(
+                                                () => extras[ext] = b!,
+                                              ),
+                                          controlAffinity:
+                                              ListTileControlAffinity.leading,
+                                          contentPadding: EdgeInsets.zero,
+                                          activeColor: Colors.amber,
+                                        );
+                                      }).toList(),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   SizedBox(width: 16),
                   Expanded(
                     flex: 1,
-                    child: ImagePickerWidget(
-                      onImageSelected: (file) => _imageFile = file,
-                      initialImageUrl: _existingImageUrl,
+                    child: Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF232334),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ImagePickerWidget(
+                        onImageSelected: (file) => _imageFile = file,
+                        initialImageUrl: _existingImageUrl,
+                      ),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   ElevatedButton.icon(
-                    icon: Icon(Icons.cancel),
+                    icon: Icon(Icons.cancel, color: Colors.white),
                     label: Text('Cancelar'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey,
+                      backgroundColor: Colors.grey[700],
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                     ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   SizedBox(width: 16),
                   ElevatedButton.icon(
-                    icon: Icon(Icons.check),
+                    icon: Icon(Icons.save),
                     label: Text('Guardar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber[700],
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                    ),
                     onPressed: submitForm,
                   ),
                 ],
@@ -301,6 +312,59 @@ class EditProductState extends State<EditProduct> {
     );
   }
 
+  // 🔧 Helpers para no repetir estilos
+  Widget _styledTextField({
+    required String initialValue,
+    required String label,
+    FormFieldSetter<String>? onSaved,
+    FormFieldValidator<String>? validator,
+  }) {
+    return TextFormField(
+      initialValue: initialValue,
+      style: TextStyle(color: Colors.white),
+      decoration: _inputDecoration(label),
+      onSaved: onSaved,
+      validator: validator,
+    );
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.white),
+      filled: true,
+      fillColor: Color(0xFF2E2E3E),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.amber),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 8.0),
+    child: Text(
+      text,
+      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+    ),
+  );
+
+  Widget _checkAllTile(Map<String, bool> map, VoidCallback onChanged) {
+    return CheckboxListTile(
+      title: Text('Marcar todos', style: TextStyle(color: Colors.white)),
+      value: !map.values.contains(false),
+      onChanged: (_) => onChanged(),
+      controlAffinity: ListTileControlAffinity.leading,
+      contentPadding: EdgeInsets.zero,
+      activeColor: Colors.amber,
+    );
+  }
+
+  // 🔄 Tu método submitForm queda intacto
   void submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
@@ -322,10 +386,7 @@ class EditProductState extends State<EditProduct> {
       String imageUrl = _existingImageUrl ?? '';
 
       if (_imageFile != null) {
-        final uploadedUrl = await uploadImage(
-          _imageFile,
-          'userId',
-        ); // Reemplaza con el real
+        final uploadedUrl = await uploadImage(_imageFile, 'userId');
         if (uploadedUrl != null) {
           imageUrl = uploadedUrl;
         }
@@ -340,7 +401,7 @@ class EditProductState extends State<EditProduct> {
         image: imageUrl,
       );
 
-      final success = await databaseManager.updateProduct(updatedProduct);
+      final success = await updateProduct(updatedProduct);
 
       if (success) {
         Navigator.of(context).pop();
@@ -352,22 +413,18 @@ class EditProductState extends State<EditProduct> {
     }
   }
 
+  // 🔄 Subida y guardado de imagen quedan igual
   Future<String?> uploadImage(File? file, String userId) async {
     try {
-      // Generar nombre único con timestamp:
       String fileName = DateTime.now().millisecondsSinceEpoch.toString();
       Reference ref = FirebaseStorage.instance.ref().child(
         'products/image/$fileName.jpg',
       );
-
-      // Iniciar la carga del archivo:
       UploadTask uploadTask = ref.putFile(file!);
       TaskSnapshot snapshot = await uploadTask;
-      // Una vez subido, obtener URL de descarga:
       String downloadUrl = await snapshot.ref.getDownloadURL();
       return downloadUrl;
-    } on FirebaseException catch (e) {
-      // Manejar errores (ej. permisos, tamaño, etc)
+    } catch (e) {
       print('Error al subir imagen: $e');
       return null;
     }
@@ -384,11 +441,7 @@ class EditProductState extends State<EditProduct> {
           'fecha': Timestamp.now(),
           'usuario': usuarioId,
         })
-        .then((_) {
-          print('Datos de imagen guardados en Firestore');
-        })
-        .catchError((error) {
-          print('Error al guardar en Firestore: $error');
-        });
+        .then((_) => print('Datos de imagen guardados en Firestore'))
+        .catchError((error) => print('Error al guardar en Firestore: $error'));
   }
 }

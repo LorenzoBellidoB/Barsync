@@ -10,7 +10,6 @@ class RestaurantModel {
   String address;
   String phone;
   String emailBoss;
-  String password;
   List<UserModel> waiters;
   List<UserModel> cookers;
   List<TableModel> tables;
@@ -23,7 +22,6 @@ class RestaurantModel {
     required this.address,
     required this.phone,
     required this.emailBoss,
-    required this.password,
     this.waiters = const [],
     this.cookers = const [],
     this.tables = const [],
@@ -39,7 +37,6 @@ class RestaurantModel {
       'state': state,
       'address': address,
       'phone': phone,
-      'password': password,
       'waiters': waiters,
       'cookers': cookers,
       'tables': tables,
@@ -54,7 +51,6 @@ class RestaurantModel {
       address: json['address'],
       phone: json['phone'],
       emailBoss: json['emailBoss'],
-      password: json['password'],
       waiters: json['waiters'],
       cookers: json['cookers'],
       tables: json['tables'],
@@ -71,7 +67,6 @@ class RestaurantModel {
       'state': state,
       'address': address,
       'phone': phone,
-      'password': password,
       'tables': tables,
     };
   }
@@ -84,7 +79,6 @@ class RestaurantModel {
       address: json['address'],
       phone: json['phone'],
       emailBoss: json['emailBoss'],
-      password: json['password'],
       tables: json['tables'],
       date: json['date'],
     );

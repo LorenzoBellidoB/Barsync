@@ -27,3 +27,18 @@ exports.notifyWaiter = functions.https.onRequest(async (req, res) => {
     return res.status(500).send("Error enviando la notificación");
   }
 });
+
+
+exports.deleteUserByEmail = functions.https.onCall(async (data, context) => {
+  const email = data.email;
+  console.log("Recibido email:", email);
+  try {
+    const userRecord = await admin.auth().getUserByEmail(email);
+    await admin.auth().deleteUser(userRecord.uid);
+    console.log(`Usuario ${email} eliminado.`);
+    return {success: true};
+  } catch (error) {
+    console.error("Error eliminando usuario:", error);
+    throw new functions.https.HttpsError("not-found", error.message);
+  }
+});

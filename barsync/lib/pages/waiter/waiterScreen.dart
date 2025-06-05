@@ -1,5 +1,4 @@
 import 'package:barsync/models/tableModel.dart';
-import 'package:barsync/models/userModel.dart';
 import 'package:barsync/pages/waiter/createOrder.dart';
 import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:barsync/utils/sesion.dart';
@@ -14,127 +13,26 @@ class WaiterScreen extends StatefulWidget {
 }
 
 class _WaiterScreenState extends State<WaiterScreen> {
-  List<TableModel> tables = [];
+  TableModel? _selectedTable;
 
-  TableModel? selectedTable;
-
-  Color getColorByDinners(int dinners, String? state) {
-    switch (state) {
-      case 'ocupado':
-        return Colors.red;
-      case 'reservado':
-        return Colors.purple;
-      case 'libre':
-        return Colors.green;
-      // Puedes agregar más estados si es necesario
-      case null:
-      default:
-        return Colors.grey;
-    }
+  void _selectTable(TableModel table) {
+    setState(() => _selectedTable = table);
   }
 
-  void selectTable(TableModel table) {
-    setState(() {
-      selectedTable = table;
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    listenTables();
-  }
-
-  void listenTables() {
-    FirebaseFirestore.instance
-        .collection('tables')
-        .where('restaurant', isEqualTo: widget.restaurantRef)
-        .orderBy('number')
-        .snapshots()
-        .listen((snap) {
-          setState(() {
-            tables =
-                snap.docs.map((doc) {
-                  final data = doc.data();
-                  return TableModel.fromJson({...data, 'id': doc.id});
-                }).toList();
-          });
-        });
-  }
-
-  Widget buildTableWidget(TableModel t, {bool dragging = false}) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        double size = constraints.maxWidth;
-
-        return SizedBox(
-          width: size,
-          height: size,
-          child: Stack(
-            children: [
-              Align(
-                alignment: Alignment.topCenter,
-                child: bar(size * 0.2, size * 0.6, dragging),
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: bar(size * 0.2, size * 0.6, dragging),
-              ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: bar(size * 0.6, size * 0.2, dragging),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: bar(size * 0.6, size * 0.2, dragging),
-              ),
-              Center(
-                child: Container(
-                  width: size * 0.6,
-                  height: size * 0.6,
-                  decoration: BoxDecoration(
-                    color:
-                        dragging
-                            ? getColorByDinners(t.dinners, t.state).withAlpha(6)
-                            : getColorByDinners(t.dinners, t.state),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '${t.number}',
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget bar(double width, double height, bool dragging) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: dragging ? Colors.blueGrey.withAlpha(6) : Colors.blueGrey[800],
-        borderRadius: BorderRadius.circular(2),
-      ),
-    );
+  void _clearSelection() {
+    setState(() => _selectedTable = null);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color.fromRGBO(23, 23, 34, 1),
+        backgroundColor: const Color.fromRGBO(23, 23, 34, 1),
         elevation: 0,
-        automaticallyImplyLeading:
-            false, // Evita que Flutter reserve espacio para "leading"
+        automaticallyImplyLeading: false,
         flexibleSpace: SafeArea(
           child: Padding(
-            padding: EdgeInsets.only(left: 12.0, top: 12),
+            padding: const EdgeInsets.only(left: 12.0, top: 12),
             child: Row(
               children: [
                 Image.asset(
@@ -142,8 +40,8 @@ class _WaiterScreenState extends State<WaiterScreen> {
                   width: 20,
                   height: 20,
                 ),
-                SizedBox(width: 8),
-                Text(
+                const SizedBox(width: 8),
+                const Text(
                   'BarSync',
                   style: TextStyle(
                     fontSize: 20,
@@ -161,63 +59,212 @@ class _WaiterScreenState extends State<WaiterScreen> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(12.0),
-              child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 1,
-                ),
-                itemCount: tables.length,
-                itemBuilder: (context, index) {
-                  final table = tables[index];
-                  return GestureDetector(
-                    onTap: () async {
-                      final currentUser = Session().currentUser;
+              child: StreamBuilder<QuerySnapshot>(
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('tables')
+                        .where('restaurant', isEqualTo: widget.restaurantRef)
+                        .orderBy('number')
+                        .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return const Center(child: Text('Error al cargar mesas'));
+                  }
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                      // Si el camarero es el mismo que está atendiendo la mesa
-                      if (table.state == 'ocupado' &&
-                          table.waiter?.id == currentUser.id) {
-                        // Opcional: podrías cargar la orden existente si necesitas pasar datos
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => OrderScreen(table: table),
-                          ),
-                        );
-                      }
-                      // Si la mesa no está ocupada (libre o reservada), la puedes seleccionar
-                      else if (table.state != 'ocupado') {
-                        selectTable(table);
-                      }
+                  final tables =
+                      snapshot.data!.docs.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return TableModel.fromJson({...data, 'id': doc.id});
+                      }).toList();
+
+                  return GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 1,
+                        ),
+                    itemCount: tables.length,
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () => _onTableTap(tables[index]),
+                        child: _TableWidget(
+                          table: tables[index],
+                          isSelected: _selectedTable?.id == tables[index].id,
+                        ),
+                      );
                     },
-
-                    child: buildTableWidget(table),
                   );
                 },
               ),
             ),
           ),
 
-          // Panel inferior (solo si hay mesa seleccionada)
-          if (selectedTable != null &&
-              (selectedTable!.state != 'ocupado' ||
-                  selectedTable!.waiter?.id == Session().currentUser))
-            buildPanel(),
+          if (_shouldShowPanel())
+            _BottomPanel(table: _selectedTable!, onClose: _clearSelection),
         ],
       ),
     );
   }
 
-  Widget buildPanel() {
-    final dinnersController = TextEditingController(
-      text: '${selectedTable!.dinners}',
-    );
+  bool _shouldShowPanel() {
+    if (_selectedTable == null) return false;
+    final table = _selectedTable!;
+    final currentUser = Session().currentUser;
+    return table.state != 'ocupado' || table.waiter?.id == currentUser.id;
+  }
 
+  void _onTableTap(TableModel table) {
+    final currentUser = Session().currentUser;
+
+    if (table.state == 'ocupado' && table.waiter?.id == currentUser.id) {
+      // Si el camarero actual atiende esa mesa, va directamente a la orden
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => OrderScreen(table: table)),
+      );
+    } else if (table.state != 'ocupado') {
+      // Si no está ocupada, la selecciona para abrir panel
+      _selectTable(table);
+    }
+  }
+}
+
+class _TableWidget extends StatelessWidget {
+  final TableModel table;
+  final bool isSelected;
+
+  const _TableWidget({Key? key, required this.table, this.isSelected = false})
+    : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = constraints.maxWidth;
+        final dragging = isSelected;
+
+        return SizedBox(
+          width: size,
+          height: size,
+          child: Stack(
+            children: [
+              Align(
+                alignment: Alignment.topCenter,
+                child: _bar(size * 0.2, size * 0.6, dragging),
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: _bar(size * 0.2, size * 0.6, dragging),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: _bar(size * 0.6, size * 0.2, dragging),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _bar(size * 0.6, size * 0.2, dragging),
+              ),
+              Center(
+                child: Container(
+                  width: size * 0.6,
+                  height: size * 0.6,
+                  decoration: BoxDecoration(
+                    color: _TableColor.getColor(
+                      dinners: table.dinners,
+                      state: table.state,
+                      selected: dragging,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '${table.number}',
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _bar(double width, double height, bool selected) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: selected ? Colors.blueGrey.withAlpha(6) : Colors.blueGrey[800],
+        borderRadius: BorderRadius.circular(2),
+      ),
+    );
+  }
+}
+
+class _TableColor {
+  static Color getColor({
+    required int dinners,
+    required String? state,
+    required bool selected,
+  }) {
+    Color base;
+    switch (state) {
+      case 'ocupado':
+        base = Colors.red;
+        break;
+      case 'reservado':
+        base = Colors.purple;
+        break;
+      case 'libre':
+        base = Colors.green;
+        break;
+      default:
+        base = Colors.grey;
+    }
+    return selected ? base.withAlpha(6) : base;
+  }
+}
+
+class _BottomPanel extends StatefulWidget {
+  final TableModel table;
+  final VoidCallback onClose;
+
+  const _BottomPanel({Key? key, required this.table, required this.onClose})
+    : super(key: key);
+
+  @override
+  State<_BottomPanel> createState() => __BottomPanelState();
+}
+
+class __BottomPanelState extends State<_BottomPanel> {
+  late TextEditingController _dinnersController;
+
+  @override
+  void initState() {
+    super.initState();
+    _dinnersController = TextEditingController(text: '${widget.table.dinners}');
+  }
+
+  @override
+  void dispose() {
+    _dinnersController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final table = widget.table;
+    final isReserved = table.state == 'reservado';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Color.fromRGBO(23, 23, 34, 1),
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -225,130 +272,155 @@ class _WaiterScreenState extends State<WaiterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(
-                  'Mesa ${selectedTable?.number} ${selectedTable?.state == "reservado" ? "(Reservado)" : ""}',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Spacer(),
-                IconButton(
-                  icon: Icon(Icons.close, color: Colors.white),
-                  onPressed: () => setState(() => selectedTable = null),
-                ),
-              ],
-            ),
+            _buildHeader(table.number, isReserved),
             const SizedBox(height: 16),
-            TextField(
-              style: TextStyle(color: Colors.white),
-              controller: dinnersController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Color.fromRGBO(35, 35, 50, 1),
-                labelText: 'Comensales',
-                labelStyle: TextStyle(color: Colors.white70),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.white24),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.white24),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.blueAccent),
-                ),
-              ),
-            ),
-
+            _buildDinnersField(),
             const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent, // Azul brillante
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  onPressed: () async {
-                    final newDinners = int.tryParse(dinnersController.text);
-                    DocumentReference user = getUserById(Session().currentUser);
-
-                    final table = selectedTable;
-
-                    if (newDinners != null && table != null) {
-                      await FirebaseFirestore.instance
-                          .collection('tables')
-                          .doc(table.id)
-                          .update({
-                            'dinners': newDinners,
-                            'state': 'ocupado',
-                            'waiter': user,
-                          });
-                      table.dinners = newDinners;
-                    }
-
-                    try {
-                      final querySnap =
-                          await FirebaseFirestore.instance
-                              .collection('bills')
-                              .where(
-                                'table',
-                                isEqualTo: getTableRefById(table?.id),
-                              )
-                              .where('state', isEqualTo: 'paid')
-                              .limit(1)
-                              .get();
-
-                      if (querySnap.docs.isNotEmpty) {
-                        final billDoc = querySnap.docs.first.reference;
-                        await billDoc.delete();
-                        print('Bill eliminada correctamente.');
-                      } else {
-                        print(
-                          'No se encontró una bill abierta para esta mesa.',
-                        );
-                      }
-                    } catch (e) {
-                      print('Error eliminando la bill: $e');
-                    }
-
-                    setState(() => selectedTable = null); // Cierra el panel
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => OrderScreen(table: table!),
-                      ),
-                    );
-                  },
-
-                  icon: Icon(Icons.receipt_long),
-                  label: Text('Realizar comanda'),
-                ),
-              ],
-            ),
-            SizedBox(height: 50),
+            _buildActionButton(table),
+            const SizedBox(height: 50),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader(int number, bool isReserved) {
+    return Row(
+      children: [
+        Text(
+          'Mesa $number ${isReserved ? "(Reservado)" : ""}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const Spacer(),
+        IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: widget.onClose,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDinnersField() {
+    return TextField(
+      style: const TextStyle(color: Colors.white),
+      controller: _dinnersController,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: const Color.fromRGBO(35, 35, 50, 1),
+        labelText: 'Comensales',
+        labelStyle: const TextStyle(color: Colors.white70),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white24),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white24),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.blueAccent),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(TableModel table) {
+    final isReserved = table.state == 'reservado';
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blueAccent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          onPressed: () => _onMakeOrder(table),
+          icon: const Icon(Icons.receipt_long),
+          label: const Text('Realizar comanda'),
+        ),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.purple,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          onPressed: () async {
+            final newState = isReserved ? 'libre' : 'reservado';
+            table.state = newState;
+
+            final tableRef = FirebaseFirestore.instance
+                .collection('tables')
+                .doc(table.id);
+
+            await tableRef.update({'state': newState});
+            widget.onClose(); // Cierra el panel después de la acción
+          },
+          icon: Icon(isReserved ? Icons.cancel : Icons.bookmark_add_outlined),
+          label: Text(isReserved ? 'Cancelar' : 'Reservar'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _onMakeOrder(TableModel table) async {
+    final newDinners = int.tryParse(_dinnersController.text);
+    if (newDinners == null) return;
+
+    final userRef = getUserById(Session().currentUser);
+    final tableRef = FirebaseFirestore.instance
+        .collection('tables')
+        .doc(table.id);
+
+    await tableRef.update({
+      'dinners': newDinners,
+      'state': 'ocupado',
+      'waiter': userRef,
+    });
+
+    // Si hay alguna factura "paid" anterior, la eliminamos
+    try {
+      final querySnap =
+          await FirebaseFirestore.instance
+              .collection('bills')
+              .where('table', isEqualTo: getTableRefById(table.id))
+              .where('state', isEqualTo: 'paid')
+              .limit(1)
+              .get();
+
+      if (querySnap.docs.isNotEmpty) {
+        await querySnap.docs.first.reference.delete();
+      }
+    } catch (e) {
+      // Podrías agregar un log o mostrar un snack si lo deseas
+    }
+
+    widget.onClose();
+
+    // Navega a la pantalla de creación de pedido
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => OrderScreen(table: table)),
     );
   }
 }

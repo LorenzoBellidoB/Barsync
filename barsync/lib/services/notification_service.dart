@@ -97,6 +97,8 @@ class NotificationService {
       return;
     }
     final user = Session().currentUser;
+    print(user.toJson());
+    print("🧾 ID del usuario actual: ${user.id}");
 
     final userRef = _db.collection('users').doc(user.id);
     await userRef.set({'fcmToken': token}, SetOptions(merge: true));
