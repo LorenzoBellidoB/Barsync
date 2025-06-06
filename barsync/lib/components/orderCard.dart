@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/models/productOrderModel.dart';
 import 'package:barsync/services/database/dataBaseManager.dart';
-import 'package:barsync/services/notification_service.dart';
+import 'package:barsync/utils/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -103,7 +103,7 @@ class _OrderCardState extends State<OrderCard> {
     }
 
     return Container(
-      width: 280,
+      width: 360,
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF2F2F38),
@@ -144,7 +144,7 @@ class _OrderCardState extends State<OrderCard> {
                       tableNumber,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     );
@@ -176,7 +176,7 @@ class _OrderCardState extends State<OrderCard> {
                       'Realizado por: $name',
                       style: const TextStyle(
                         color: Colors.white38,
-                        fontSize: 12,
+                        fontSize: 14,
                       ),
                     );
                   },
@@ -201,7 +201,7 @@ class _OrderCardState extends State<OrderCard> {
                       decoration: BoxDecoration(
                         color:
                             group.every((p) => p.done)
-                                ? Colors.green.withOpacity(0.1)
+                                ? Colors.green.withAlpha(1)
                                 : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -215,6 +215,7 @@ class _OrderCardState extends State<OrderCard> {
                                 child: Text(
                                   '$quantity x ${product.name} ($size)',
                                   style: TextStyle(
+                                    fontSize: 18,
                                     color:
                                         group.every((p) => p.done)
                                             ? Colors.greenAccent
@@ -287,6 +288,7 @@ class _OrderCardState extends State<OrderCard> {
                                 child: Text(
                                   '• $addOn',
                                   style: TextStyle(
+                                    fontSize: 16,
                                     color:
                                         group.every((p) => p.done)
                                             ? Colors.greenAccent.withOpacity(
@@ -354,7 +356,7 @@ class _OrderCardState extends State<OrderCard> {
               ),
               child: Text(
                 buttonText,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.white, fontSize: 18),
               ),
             ),
           ),

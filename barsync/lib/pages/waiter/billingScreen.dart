@@ -1,12 +1,13 @@
-import 'dart:ui';
-
 import 'package:barsync/models/billModel.dart';
 import 'package:barsync/models/productOrderModel.dart';
 import 'package:barsync/models/tableModel.dart';
+import 'package:barsync/pages/waiter/printerSelection.dart';
 import 'package:barsync/pages/waiter/waiterScreen.dart';
 import 'package:barsync/services/database/dataBaseManager.dart';
+import 'package:barsync/utils/print.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
 class BillingScreen extends StatefulWidget {
   final TableModel table;
@@ -149,6 +150,41 @@ class _BillingScreenState extends State<BillingScreen> {
     }
   }
 
+  String? _printerMac;
+
+  void _selectPrinter() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => PrinterSelectionScreen(
+              onSelected: (mac) {
+                setState(() => _printerMac = mac);
+                Navigator.pop(context);
+              },
+            ),
+      ),
+    );
+  }
+
+  Future<void> _printBill() async {
+    if (_printerMac == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Selecciona una impresora primero')),
+      );
+      return;
+    }
+
+    final bytes = await buildTicket(
+      products: _allProductsInBill,
+      total: _calculateBillTotal(),
+      tableNumber: '1',
+    );
+    await PrinterSelector().connectPrinter(_printerMac!);
+    await PrinterSelector().writeBytes(bytes);
+    PrintBluetoothThermal.disconnect;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -260,19 +296,32 @@ class _BillingScreenState extends State<BillingScreen> {
               top: 10,
               bottom: 48,
             ),
-            child: ElevatedButton(
-              onPressed: _processPayment,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                minimumSize: Size(double.infinity, 60),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            child: Row(
+              children: [
+                ElevatedButton(
+                  onPressed: _selectPrinter,
+                  child: Text(
+                    _printerMac == null
+                        ? 'Elegir impresora'
+                        : 'Impresora: $_printerMac',
+                  ),
                 ),
-              ),
-              child: Text(
-                'Procesar Pago',
-                style: TextStyle(fontSize: 18, color: Colors.white),
-              ),
+                // Espacio...
+                ElevatedButton(
+                  onPressed: () async {
+                    await _printBill();
+                    await _processPayment();
+                    print(
+                      buildTicketTextPreview(
+                        products: _allProductsInBill,
+                        total: _calculateBillTotal(),
+                        tableNumber: widget.table.number.toString(),
+                      ),
+                    );
+                  },
+                  child: Text('Procesar Pago'),
+                ),
+              ],
             ),
           ),
         ],

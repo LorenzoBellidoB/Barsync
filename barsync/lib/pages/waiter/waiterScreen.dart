@@ -96,7 +96,34 @@ class _WaiterScreenState extends State<WaiterScreen>
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
-          tabs: const [Tab(text: 'Mesas'), Tab(text: 'Barra')],
+          tabs: const [
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.table_restaurant, color: Colors.white),
+                  SizedBox(width: 8), // Espacio entre ícono y texto
+                  Text(
+                    'Mesas',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.local_bar, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text(
+                    'Barra',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
       body: Column(

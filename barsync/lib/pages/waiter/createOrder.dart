@@ -1,4 +1,4 @@
-import 'package:barsync/components/billingScreen.dart';
+import 'package:barsync/pages/waiter/billingScreen.dart';
 import 'package:barsync/models/billModel.dart';
 import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/models/productModel.dart';
@@ -302,7 +302,10 @@ class _OrderScreenState extends State<OrderScreen>
                         children: [
                           Text(
                             'Mesa: ${widget.table.number}',
-                            style: TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           Text(
                             'Comensales: ${widget.table.dinners}',
@@ -311,8 +314,10 @@ class _OrderScreenState extends State<OrderScreen>
                         ],
                       ),
                       Divider(color: Colors.white),
-                      ...orderProducts.map(
-                        (product) => Padding(
+                      ...orderProducts.map((product) {
+                        final unitPrice = product.price.values.first;
+
+                        return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,16 +339,26 @@ class _OrderScreenState extends State<OrderScreen>
                                 ),
                               ),
                               Text(
-                                'Total: \$${_total().toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                ),
+                                textAlign: TextAlign.right,
+                                'Subtotal: ${unitPrice.toStringAsFixed(2)}€',
+                                style: TextStyle(color: Colors.white),
                               ),
                             ],
                           ),
+                        );
+                      }),
+                      Divider(color: Colors.white),
+                      SizedBox(height: 8),
+                      Text(
+                        'Total: ${_total().toStringAsFixed(2)}€',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
+
                       Divider(color: Colors.white),
                       SizedBox(height: 16),
                       Wrap(
