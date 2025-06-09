@@ -1,13 +1,19 @@
+// lib/pages/waiter/billingScreen.dart
+
+import 'dart:io';
+
 import 'package:barsync/models/billModel.dart';
+import 'package:barsync/models/printModel.dart';
 import 'package:barsync/models/productOrderModel.dart';
 import 'package:barsync/models/tableModel.dart';
 import 'package:barsync/pages/waiter/printerSelection.dart';
 import 'package:barsync/pages/waiter/waiterScreen.dart';
 import 'package:barsync/services/database/dataBaseManager.dart';
+import 'package:barsync/utils/mdns_helper.dart';
 import 'package:barsync/utils/print.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:esc_pos_printer_plus/esc_pos_printer_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
 class BillingScreen extends StatefulWidget {
   final TableModel table;
@@ -22,6 +28,7 @@ class _BillingScreenState extends State<BillingScreen> {
   BillModel? _bill;
   List<ProductOrderModel> _allProductsInBill = [];
   bool _isLoading = true;
+  WifiPrinter? _selectedPrinter;
 
   @override
   void initState() {
@@ -31,15 +38,13 @@ class _BillingScreenState extends State<BillingScreen> {
 
   Future<void> _fetchBillDetails() async {
     setState(() => _isLoading = true);
-
     try {
-      final billSnap =
-          await FirebaseFirestore.instance
-              .collection('bills')
-              .where('table', isEqualTo: getTableRefById(widget.table.id))
-              .where('state', isEqualTo: 'open')
-              .limit(1)
-              .get();
+      final billSnap = await FirebaseFirestore.instance
+          .collection('bills')
+          .where('table', isEqualTo: getTableRefById(widget.table.id))
+          .where('state', isEqualTo: 'open')
+          .limit(1)
+          .get();
 
       if (billSnap.docs.isNotEmpty) {
         _bill = BillModel.fromJson(
@@ -48,22 +53,20 @@ class _BillingScreenState extends State<BillingScreen> {
         );
 
         _allProductsInBill.clear();
-        for (DocumentReference orderRef in _bill!.orderRefs) {
+        for (final orderRef in _bill!.orderRefs) {
           final orderSnap = await orderRef.get();
           if (!orderSnap.exists) continue;
-
           final orderData = orderSnap.data() as Map<String, dynamic>;
           final rawProducts = orderData['products'];
-
           if (rawProducts is List) {
             for (final item in rawProducts) {
               if (item is DocumentReference) {
-                final productSnap = await item.get();
-                if (productSnap.exists) {
-                  final productData =
-                      productSnap.data() as Map<String, dynamic>;
+                final prodSnap = await item.get();
+                if (prodSnap.exists) {
                   _allProductsInBill.add(
-                    ProductOrderModel.fromJson(productData),
+                    ProductOrderModel.fromJson(
+                      prodSnap.data()! as Map<String, dynamic>,
+                    ),
                   );
                 }
               } else if (item is Map<String, dynamic>) {
@@ -89,39 +92,37 @@ class _BillingScreenState extends State<BillingScreen> {
   Future<void> _processPayment() async {
     if (_bill == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No hay cuenta abierta para esta mesa.')),
+        const SnackBar(content: Text('No hay cuenta abierta para esta mesa.')),
       );
       return;
     }
 
     try {
-      // 1) Marcamos factura como “paid”
-      final totalAPagar = _calculateBillTotal();
+      final totalToPay = _calculateBillTotal();
+
+      // 1) Marcar factura como pagada
       await FirebaseFirestore.instance
           .collection('bills')
           .doc(_bill!.id)
           .update({
-            'state': 'paid',
-            'endTime': Timestamp.now(),
-            'totalAmount': totalAPagar,
-          });
+        'state': 'paid',
+        'endTime': Timestamp.now(),
+        'totalAmount': totalToPay,
+      });
 
-      // 2) Marcamos mesa como “libre”
+      // 2) Marcar mesa como libre
       await FirebaseFirestore.instance
           .collection('tables')
           .doc(widget.table.id)
           .update({'state': 'libre'});
 
-      // 3) Borramos órdenes y productos asociados usando batch
-      final WriteBatch batch = FirebaseFirestore.instance.batch();
-
-      for (DocumentReference orderRef in _bill!.orderRefs) {
+      // 3) Borrar órdenes y productos con batch
+      final batch = FirebaseFirestore.instance.batch();
+      for (final orderRef in _bill!.orderRefs) {
         final orderSnap = await orderRef.get();
         if (!orderSnap.exists) continue;
-
         final orderData = orderSnap.data() as Map<String, dynamic>;
         final rawProducts = orderData['products'];
-
         if (rawProducts is List) {
           for (final item in rawProducts) {
             if (item is DocumentReference) {
@@ -129,203 +130,232 @@ class _BillingScreenState extends State<BillingScreen> {
             }
           }
         }
-
         batch.delete(orderRef);
       }
-
       await batch.commit();
 
-      // 4) Notificación de éxito y volver a lista de camareros
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Pago procesado y datos borrados con éxito!')),
+        const SnackBar(content: Text('Pago procesado y datos borrados.')),
       );
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => WaiterScreen()),
+        MaterialPageRoute(builder: (_) => WaiterScreen()),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error al procesar el pago: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al procesar el pago: $e')),
+      );
     }
   }
 
-  String? _printerMac;
-
-  void _selectPrinter() async {
-    await Navigator.push(
+  Future<void> _selectPrinter() async {
+    await Navigator.push<WifiPrinter?>(
       context,
       MaterialPageRoute(
-        builder:
-            (_) => PrinterSelectionScreen(
-              onSelected: (mac) {
-                setState(() => _printerMac = mac);
-                Navigator.pop(context);
-              },
-            ),
+        builder: (_) => WifiPrinterSelectionScreen(
+          onSelected: (printer) {
+            setState(() => _selectedPrinter = printer);
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
   }
 
-  Future<void> _printBill() async {
-    if (_printerMac == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Selecciona una impresora primero')),
-      );
-      return;
-    }
-
-    final bytes = await buildTicket(
-      products: _allProductsInBill,
-      total: _calculateBillTotal(),
-      tableNumber: '1',
-    );
-    await PrinterSelector().connectPrinter(_printerMac!);
-    await PrinterSelector().writeBytes(bytes);
-    PrintBluetoothThermal.disconnect;
+ Future<void> _printBill() async {
+  if (_selectedPrinter == null) {
+    print('❌ Selecciona una impresora Wi-Fi');
+    return;
   }
 
+  String ip;
+
+  try {
+    // Buscar solo IPv4 para evitar problemas con IPv6 link-local
+    final addrs = await InternetAddress.lookup(
+      _selectedPrinter!.host,
+      type: InternetAddressType.IPv4,
+    );
+    if (addrs.isEmpty) throw Exception('No se encontró IP IPv4');
+    ip = addrs.first.address;
+    print('✅ Dirección IPv4 de la impresora: $ip');
+  } catch (e) {
+    print('❌ Error resolviendo IP IPv4: $e');
+    return;
+  }
+
+  final manager = WifiPrinterManager();
+  final connected = await manager.connectPrinter(
+    host: ip,
+    port: _selectedPrinter!.port,
+  );
+  if (!connected) {
+    print('❌ No se pudo conectar a la impresora');
+    return;
+  }
+  print('✅ Conexión establecida con la impresora');
+
+  final result = await manager.printTicket(
+    products: _allProductsInBill,
+    total: _calculateBillTotal(),
+    tableNumber: widget.table.number.toString(),
+  );
+  await manager.disconnect();
+
+  if (result == PosPrintResult.success) {
+    print('✅ Ticket impreso correctamente');
+  } else {
+    print('❌ Error al imprimir el ticket: ${result.msg}');
+  }
+}
+
   @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: Text('Cargando Cuenta')),
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_bill == null) {
-      return Scaffold(
-        appBar: AppBar(title: Text('Cuenta')),
-        body: Center(
-          child: Text(
-            'No hay cuenta abierta para la mesa ${widget.table.number}',
-          ),
-        ),
-      );
-    }
-
+Widget build(BuildContext context) {
+  if (_isLoading) {
     return Scaffold(
-      appBar: AppBar(title: Text('Cuenta de Mesa ${widget.table.number}')),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16.0),
-              children: [
-                Text(
-                  'Detalles de la Cuenta',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                SizedBox(height: 16),
-                ..._allProductsInBill.map((product) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+      appBar: AppBar(title: const Text('Cargando Cuenta')),
+      body: const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  if (_bill == null) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Cuenta')),
+      body: Center(
+        child: Text(
+          'No hay cuenta abierta para la mesa ${widget.table.number}',
+          style: const TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      ),
+    );
+  }
+
+  return Scaffold(
+    appBar: AppBar(
+      title: Text('Cuenta - Mesa ${widget.table.number}'),
+      centerTitle: true,
+    ),
+    body: Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const Text(
+                'Detalles de la Cuenta',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+
+              ..._allProductsInBill.map((product) {
+                return Card(
+                  elevation: 2,
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const Icon(Icons.fastfood, size: 28, color: Colors.brown),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 product.name,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              ...product.addOns.map(
-                                (addon) => Padding(
-                                  padding: const EdgeInsets.only(top: 2.0),
-                                  child: Text(
-                                    "- $addon",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              if (product.addOns.isNotEmpty)
+                                ...product.addOns.map((addon) => Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Text(
+                                        '• $addon',
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey[700]),
+                                      ),
+                                    )),
                             ],
                           ),
                         ),
-                        SizedBox(width: 8),
                         Text(
-                          '\$${product.price.values.first.toStringAsFixed(2)}',
-                          style: TextStyle(fontSize: 16, color: Colors.black),
+                          '${product.price.values.first.toStringAsFixed(2)} €',
+                          style: const TextStyle(fontSize: 16),
                         ),
                       ],
                     ),
-                  );
-                }).toList(),
-                Divider(height: 32, color: Colors.grey),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Total a Pagar:',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    Text(
-                      '\$${_calculateBillTotal().toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                );
+              }).toList(),
+
+              const Divider(height: 32, thickness: 1),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total a Pagar:',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '${_calculateBillTotal().toStringAsFixed(2)} €',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(
-              right: 16,
-              left: 16,
-              top: 10,
-              bottom: 48,
-            ),
-            child: Row(
-              children: [
-                ElevatedButton(
+        ),
+
+        // Botones
+        Container(
+          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 48),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
                   onPressed: _selectPrinter,
-                  child: Text(
-                    _printerMac == null
-                        ? 'Elegir impresora'
-                        : 'Impresora: $_printerMac',
+                  icon: const Icon(Icons.print, color: Colors.white,),
+                  label: Text(_selectedPrinter == null
+                      ? 'Seleccionar impresora'
+                      : _selectedPrinter!.name, style: TextStyle(color: Colors.white ,overflow: TextOverflow.ellipsis),),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
                   ),
                 ),
-                // Espacio...
-                ElevatedButton(
-                  onPressed: () async {
-                    await _printBill();
-                    await _processPayment();
-                    print(
-                      buildTicketTextPreview(
-                        products: _allProductsInBill,
-                        total: _calculateBillTotal(),
-                        tableNumber: widget.table.number.toString(),
-                      ),
-                    );
-                  },
-                  child: Text('Procesar Pago'),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _selectedPrinter == null
+                      ? null
+                      : () async {
+                          await _printBill();
+                          await _processPayment();
+                        },
+                  icon: const Icon(Icons.check_circle_outline, color: Colors.white,),
+                  label: const Text('Procesar Pago', style: TextStyle(color: Colors.white ,overflow: TextOverflow.ellipsis),),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        _selectedPrinter == null ? Colors.grey : Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
+
 }
