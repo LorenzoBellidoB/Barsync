@@ -42,6 +42,13 @@ class EditProductState extends State<EditProduct> {
   final Map<String, TextEditingController> _priceControllers = {};
 
   @override
+  /*************  ✨ Windsurf Command ⭐  *************/
+  /// Inicializa los valores de los campos del formulario con los valores del
+  /// producto a editar.
+  ///
+  /// Llena el mapa [_priceControllers] con los precios asociados a cada tama o
+  /// y el mapa [extras] con los extras asociados al producto.
+  /*******  ab392d83-b5d7-4ab6-a4ed-0b33e025ec2e  *******/
   void initState() {
     super.initState();
     name = widget.producto.name;
@@ -312,7 +319,6 @@ class EditProductState extends State<EditProduct> {
     );
   }
 
-  // 🔧 Helpers para no repetir estilos
   Widget _styledTextField({
     required String initialValue,
     required String label,
@@ -364,7 +370,12 @@ class EditProductState extends State<EditProduct> {
     );
   }
 
-  // 🔄 Tu método submitForm queda intacto
+  /// Valida el formulario y actualiza el producto en la base de datos.
+  ///
+  /// Si el formulario es válido, crea un objeto ProductModel con los datos
+  /// actuales y llama a updateProduct para subir los cambios a la base de
+  /// datos. Si el update es exitoso, navega hacia atrás. De lo contrario,
+  /// muestra un SnackBar con un mensaje de error.
   void submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
@@ -413,7 +424,17 @@ class EditProductState extends State<EditProduct> {
     }
   }
 
-  // 🔄 Subida y guardado de imagen quedan igual
+  /// Sube una imagen a Firebase Storage y devuelve la URL de descarga.
+  ///
+  /// El archivo se guarda en la carpeta "products/image" con un nombre
+  /// aleatorio (timestamp en milisegundos) y extensión ".jpg".
+  ///
+  /// Si ocurre un error al subir la imagen, se imprime un mensaje de error
+  /// y se devuelve null.
+  ///
+  /// file es el archivo a subir.
+  /// userId es el ID del usuario que sube la imagen (no se utiliza actualmente).
+  ///
   Future<String?> uploadImage(File? file, String userId) async {
     try {
       String fileName = DateTime.now().millisecondsSinceEpoch.toString();
@@ -430,6 +451,17 @@ class EditProductState extends State<EditProduct> {
     }
   }
 
+  /// Guarda los datos de una imagen en Firestore en la coleccion "images".
+  ///
+  /// La imagen se guarda con los siguientes campos:
+  ///  - url (String): La URL de descarga de la imagen.
+  ///  - nombre (String): El nombre de la imagen.
+  ///  - fecha (Timestamp): La marca de tiempo actual.
+  ///  - usuario (String): El ID del usuario que subi  la imagen.
+  ///
+  /// Si la imagen se guarda correctamente, se imprime un mensaje de confirmacion.
+  /// Si ocurre un error durante la carga, se imprime un mensaje de error con el
+  /// error obtenido.
   Future<void> saveImageData(String imageUrl, String nombre, String usuarioId) {
     CollectionReference images = FirebaseFirestore.instance.collection(
       'images',

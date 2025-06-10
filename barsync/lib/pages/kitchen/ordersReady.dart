@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:barsync/components/alert.dart';
 import 'package:barsync/components/orderCard.dart';
+import 'package:barsync/components/rotationScreen.dart';
 import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/pages/kitchen/ordersPending.dart';
 import 'package:barsync/pages/login/login.dart';
@@ -80,6 +81,16 @@ class _OrdersReadyState extends State<OrdersReady> {
 
   @override
   Widget build(BuildContext context) {
+        final mediaQuery = MediaQuery.of(context);
+    final isPortrait = mediaQuery.orientation == Orientation.portrait;
+    final screenWidth = mediaQuery.size.width;
+
+    // Define the minimum width for landscape or larger screens
+    const double minScreenWidth = 1000.0;
+
+    if (isPortrait || screenWidth < minScreenWidth) {
+      return RotationMessageScreen();
+    }
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E23),
       appBar: AppBar(

@@ -34,6 +34,12 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
   List<Map<String, TextEditingController>> camareros = [];
   List<Map<String, TextEditingController>> cocineros = [];
 
+  /// El valor actual de `_camarerosCountController.text` y
+  /// `_cocinerosCountController.text` se utiliza para crear una lista de
+  /// `TextEditingController` con el número de elementos solicitado. El contenido
+  /// de cada elemento se inicializa con un valor predeterminado.
+  /// Luego, se llama a `setState` para reflejar el cambio en el estado de la
+  /// pantalla.
   void updateDynamicFields() {
     int camarerosCount = int.tryParse(_camarerosCountController.text) ?? 0;
     int cocinerosCount = int.tryParse(_cocinerosCountController.text) ?? 0;
@@ -57,6 +63,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     });
   }
 
+  /// Verifica que todos los campos del formulario esten completos y no vacios.
   bool validateFields() {
     for (var key in restauranteControllers.keys) {
       if (restauranteControllers[key]!.text.isEmpty) {
@@ -67,6 +74,19 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     return true;
   }
 
+  /// Crea un nuevo restaurante con los datos del formulario, y crea a los
+  /// camareros, cocineros y jefe del restaurante en la base de datos.
+  ///
+  /// Primero, se crea un `RestaurantModel` con los datos del formulario,
+  /// y se guarda en la base de datos mediante `saveRestaurant`.
+  /// Luego, se obtiene la referencia al restaurante recien creado,
+  /// y se crean los camareros, cocineros y jefe del restaurante
+  /// mediante `createWaitersCookersBoss`.
+  ///
+  /// Si ocurre un error, se muestra una alerta con el mensaje de error.
+  ///
+  /// Si se completa correctamente, se muestra una snackbar con un mensaje
+  /// de exito.
   void createRestaurant() async {
     RestaurantModel restaurant = RestaurantModel(
       name: restauranteControllers['nombre']!.text,
@@ -78,15 +98,14 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     );
     try {
       final firestore = FirebaseFirestore.instance;
-      // Guardar el restaurante
       String idRestaurante = await saveRestaurant(restaurant);
       print('Restaurante');
       print(restaurant.toJson());
-      // Obtengo la referencia al restaurante
+
       final restaurantDoc = firestore
           .collection('restaurants')
           .doc(idRestaurante);
-      // Crear camareros y cocineros del restaurante
+
       createWaitersCookersBoss(restaurantDoc);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -94,11 +113,30 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
           backgroundColor: Colors.green,
         ),
       );
+      Navigator.pop(context);
     } catch (e) {
       print(e);
     }
   }
 
+  /// Crea los camareros, cocineros y jefe del restaurante en la base de datos.
+  ///
+  /// Primero, se crea un `UserModel` para el jefe del restaurante,
+  /// y se verifica si ya existe un usuario con ese email.
+  /// Si existe, se muestra una alerta con un mensaje de error.
+  /// Si no existe, se crea el usuario en la base de datos mediante
+  /// `createOrUpdateAuthUserAndSave`, y se agrega a la lista de usuarios.
+  ///
+  /// Luego, se crean los camareros y cocineros del restaurante de la misma manera,
+  /// y se agregan a la lista de usuarios.
+  ///
+  /// Finalmente, se actualiza el restaurante con las referencias a los usuarios
+  /// mediante `updateUsersRestaurant`.
+  ///
+  /// Si ocurre un error, se muestra una alerta con el mensaje de error.
+  ///
+  /// Si se completa correctamente, se muestra una snackbar con un mensaje
+  /// de exito.
   void createWaitersCookersBoss(DocumentReference id) async {
     List<UserModel> listUsers = [];
 
@@ -197,6 +235,11 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
   }
 
   @override
+  /// Cancela la suscripción al stream de restaurantes y
+  /// descarta todos los controladores de texto de la pantalla,
+  /// incluyendo los de los campos de camareros y cocineros.
+  /// Luego, llama a `super.dispose()` para liberar cualquier
+  /// otro recurso que el widget pueda estar utilizando.
   void dispose() {
     for (var c in camareros) {
       c.forEach((_, controller) => controller.dispose());
@@ -627,7 +670,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                 return;
                               }
                               createRestaurant();
-                              Navigator.pop(context);
                             },
                             icon: const Icon(
                               Icons.add_business,

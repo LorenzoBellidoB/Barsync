@@ -20,7 +20,6 @@ class CreateProduct extends StatefulWidget {
 class CreateProductState extends State<CreateProduct> {
   final _formKey = GlobalKey<FormState>();
   final ScrollController _extrasScrollController = ScrollController();
-  final ImagePicker _picker = ImagePicker();
 
   String name = '';
   String? _productClass;
@@ -369,6 +368,13 @@ class CreateProductState extends State<CreateProduct> {
     );
   }
 
+  /// Este metodo se encarga de validar el formulario, subir la imagen del
+  /// producto, crear el objeto ProductModel y guardarlo en la base de
+  /// datos. Luego, actualiza la categoria correspondiente para que incluya
+  /// el nuevo producto.
+  ///
+  /// Si ocurre un error al subir la imagen, se muestra un SnackBar
+  /// indicando el error.
   void submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
@@ -417,6 +423,18 @@ class CreateProductState extends State<CreateProduct> {
     }
   }
 
+  /// Sube un archivo de imagen a Firebase Storage en el directorio 'products/image'.
+  ///  Si el archivo proporcionado es `null` o no existe, devuelve una URL de imagen predeterminada.
+  ///  La imagen se sube con un nombre de archivo que incluye el ID del usuario y la marca de tiempo actual.
+  ///  Tras una carga exitosa, la función devuelve la URL de descarga de la imagen subida.
+  ///  En caso de un error durante la carga, registra el error y devuelve `null`.
+  ///  Args:
+  ///  file (File?): El archivo de imagen que se va a subir.
+  ///  userId (String): El ID del usuario que sube la imagen.
+  ///  Returns:
+  ///  Future<String?>: Un Future que se resuelve en la URL de descarga de la imagen subida,
+  ///  o `null` si ocurre un error durante la carga.
+
   Future<String?> uploadImage(File? file, String userId) async {
     try {
       if (file == null || !file.existsSync()) {
@@ -437,6 +455,18 @@ class CreateProductState extends State<CreateProduct> {
     }
   }
 
+  /// Guarda los datos de una imagen en Firestore en la coleccion "images".
+  ///
+  /// La imagen se guarda con los siguientes campos:
+  ///  - url (String): La URL de descarga de la imagen.
+  ///  - nombre (String): El nombre de la imagen.
+  ///  - fecha (Timestamp): La marca de tiempo actual.
+  ///  - usuario (String): El ID del usuario que subi  la imagen.
+  ///
+  /// Si la imagen se guarda correctamente, se imprime un mensaje de confirmacion.
+  /// Si ocurre un error durante la carga, se imprime un mensaje de error con el
+  /// error obtenido.
+  ///
   Future<void> saveImageData(String imageUrl, String nombre, String usuarioId) {
     CollectionReference images = FirebaseFirestore.instance.collection(
       'images',
