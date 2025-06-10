@@ -26,44 +26,44 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
   String rol = "";
 
+/// Maneja el inicio de sesión del usuario validando las credenciales y navegando según los roles de los usuarios.
+/// Esta función recupera el correo electrónico y la contraseña de los respectivos controladores de texto.
+/// Si ambos campos están llenos, intenta iniciar sesión utilizando el `AuthService`. Al iniciar sesión con éxito,
+/// se recupera los detalles del usuario de Firestore y navega a diferentes pantallas según el rol del usuario (por ejemplo, AdminScreen, WaiterScreen, etc.).
+/// Si el inicio de sesión falla, se muestra un diálogo de error. Si los campos están vacíos, un diálogo solicita al usuario que complete todos los campos.
+
   void login() async {
     String email = emailController.text;
     String password = passwordController.text;
     print("Email: $email, Contraseña: $password");
 
     if (email.isNotEmpty && password.isNotEmpty) {
-      // Esperar el resultado real
       try {
         User? user = await AuthService().signInWithEmail(email, password);
         print("credenciales: $user");
 
         if (user == null) {
-          // Solo mostrar si el usuario es null (login fallido)
           showDialog(
             context: context,
             barrierDismissible:
-                false, // <-- ¡Esta línea evita que se cierre tocando fuera!
+                false,
             builder:
                 (context) => const CustomAlertDialog(
                   title: "Error de credenciales",
                   message: "El email o la contraseña son incorrectos.",
-                  buttonText: "Intentar de nuevo", // Texto del botón
+                  buttonText: "Intentar de nuevo",
                   colorbg: Color.fromRGBO(
                     23,
                     23,
                     34,
                     1,
-                  ), // Color del ícono y título
-                  icon: Icons.warning_amber, // Ícono del título
-                  textColor: Colors.white, // Color del texto del botón
-                  buttonColor: Colors.redAccent, // Color de fondo del botón
+                  ), 
+                  icon: Icons.warning_amber, 
+                  textColor: Colors.white, 
+                  buttonColor: Colors.redAccent, 
                 ),
           );
         } else {
-          // Obtener datos del usuario desde Firestore
-          if (user.email == 'test@test.com') {
-            showSuccessDialog(rol, const AdminScreen());
-          }
           List<UserModel> users = await getUsersByEmail(email).first;
           if (users.isNotEmpty) {
             UserModel userModel = users.first;
@@ -116,21 +116,21 @@ class _LoginScreenState extends State<LoginScreen> {
       showDialog(
         context: context,
         barrierDismissible:
-            false, // <-- ¡Esta línea evita que se cierre tocando fuera!
+            true,
         builder:
             (context) => const CustomAlertDialog(
               title: "Campo Vacío",
               message: "Rellene todos los campos.",
-              buttonText: "Aceptar", // Texto del botón
+              buttonText: "Aceptar",
               colorbg: Color.fromRGBO(
                 23,
                 23,
                 34,
                 1,
-              ), // Color del ícono y título
-              icon: Icons.help_outline, // Ícono del título
-              textColor: Colors.white, // Color del texto del botón
-              buttonColor: Colors.orangeAccent, // Color de fondo del botón
+              ), 
+              icon: Icons.help_outline, 
+              textColor: Colors.white, 
+              buttonColor: Colors.orangeAccent, 
             ),
       );
     }
@@ -169,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
-          bool isMobile = constraints.maxWidth < 600;
+          bool isMobile = constraints.maxWidth < 850;
 
           return Stack(
             children: [
@@ -182,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
               isMobile
                   ? Center(
                     child: _buildLoginForm(),
-                  ) // Solo el formulario en móviles
+                  ) 
                   : Row(
                     children: [
                       Expanded(child: _buildWelcomeSection()),
@@ -236,7 +236,6 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                // icono + texto horizontal
                 children: [
                   Image.asset(
                     'assets/icons/barSyncApp.png',
