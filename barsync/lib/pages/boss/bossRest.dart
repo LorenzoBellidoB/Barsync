@@ -41,10 +41,10 @@ class _BossScreenState extends State<BossScreen> {
   /// lanza una excepción.
   Future<void> listenCategories() async {
   try {
-    final fetchedCategories = await listenToCategories(Session().restaurantRef);
+    final fetchedCategories = listenToCategories(Session().restaurantRef);
     if (mounted) {
       setState(() {
-        categorias = fetchedCategories;
+        categorias = fetchedCategories as List<CategoryModel>;
       });
     }
   } catch (error) {

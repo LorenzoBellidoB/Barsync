@@ -11,7 +11,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OrderScreen extends StatefulWidget {
   final TableModel table;
-  const OrderScreen({Key? key, required this.table}) : super(key: key);
+  const OrderScreen({super.key, required this.table});
 
   @override
   _OrderScreenState createState() => _OrderScreenState();
@@ -46,7 +46,7 @@ class _OrderScreenState extends State<OrderScreen>
     setState(() {
       categoryNames = {
         for (var doc in catSnap.docs)
-          doc.reference: (doc.data() as Map<String, dynamic>)['name'] as String,
+          doc.reference: (doc.data())['name'] as String,
       };
     });
   }
@@ -66,8 +66,6 @@ class _OrderScreenState extends State<OrderScreen>
   }
 
   Future<void> _fetchCurrentBill() async {
-    if (widget.table == null) return;
-
     final billSnap =
         await FirebaseFirestore.instance
             .collection('bills')
@@ -90,8 +88,6 @@ class _OrderScreenState extends State<OrderScreen>
   }
 
   Future<void> _createNewBill() async {
-    if (widget.table == null) return;
-
     final newBill = BillModel(
       table: getTableRefById(widget.table.id),
       idRestaurant: Session().restaurantRef,
@@ -726,7 +722,7 @@ class _OrderScreenState extends State<OrderScreen>
                         context,
                         MaterialPageRoute(
                           builder:
-                              (context) => BillingScreen(table: widget.table),
+                              (context) => BillingScreen(table: widget.table,waiter: Session().currentUser.name),
                         ),
                       );
                     },

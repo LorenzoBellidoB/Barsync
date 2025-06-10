@@ -24,13 +24,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController resetEmailController = TextEditingController();
+
   String rol = "";
 
-/// Maneja el inicio de sesión del usuario validando las credenciales y navegando según los roles de los usuarios.
-/// Esta función recupera el correo electrónico y la contraseña de los respectivos controladores de texto.
-/// Si ambos campos están llenos, intenta iniciar sesión utilizando el `AuthService`. Al iniciar sesión con éxito,
-/// se recupera los detalles del usuario de Firestore y navega a diferentes pantallas según el rol del usuario (por ejemplo, AdminScreen, WaiterScreen, etc.).
-/// Si el inicio de sesión falla, se muestra un diálogo de error. Si los campos están vacíos, un diálogo solicita al usuario que complete todos los campos.
+  Future<bool> _emailExistsInAuth(String email) async {
+    try {
+      final methods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(email.trim());
+      return methods.isNotEmpty;
+    } catch (e) {
+      print("Error verificando email en Firebase Auth: $e");
+      return false;
+    }
+  }
 
   void login() async {
     String email = emailController.text;
@@ -45,23 +51,16 @@ class _LoginScreenState extends State<LoginScreen> {
         if (user == null) {
           showDialog(
             context: context,
-            barrierDismissible:
-                false,
-            builder:
-                (context) => const CustomAlertDialog(
-                  title: "Error de credenciales",
-                  message: "El email o la contraseña son incorrectos.",
-                  buttonText: "Intentar de nuevo",
-                  colorbg: Color.fromRGBO(
-                    23,
-                    23,
-                    34,
-                    1,
-                  ), 
-                  icon: Icons.warning_amber, 
-                  textColor: Colors.white, 
-                  buttonColor: Colors.redAccent, 
-                ),
+            barrierDismissible: false,
+            builder: (context) => const CustomAlertDialog(
+              title: "Error de credenciales",
+              message: "El email o la contraseña son incorrectos.",
+              buttonText: "Intentar de nuevo",
+              colorbg: Color.fromRGBO(23, 23, 34, 1),
+              icon: Icons.warning_amber,
+              textColor: Colors.white,
+              buttonColor: Colors.redAccent,
+            ),
           );
         } else {
           List<UserModel> users = await getUsersByEmail(email).first;
@@ -115,23 +114,16 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       showDialog(
         context: context,
-        barrierDismissible:
-            true,
-        builder:
-            (context) => const CustomAlertDialog(
-              title: "Campo Vacío",
-              message: "Rellene todos los campos.",
-              buttonText: "Aceptar",
-              colorbg: Color.fromRGBO(
-                23,
-                23,
-                34,
-                1,
-              ), 
-              icon: Icons.help_outline, 
-              textColor: Colors.white, 
-              buttonColor: Colors.orangeAccent, 
-            ),
+        barrierDismissible: true,
+        builder: (context) => const CustomAlertDialog(
+          title: "Campo Vacío",
+          message: "Rellene todos los campos.",
+          buttonText: "Aceptar",
+          colorbg: Color.fromRGBO(23, 23, 34, 1),
+          icon: Icons.help_outline,
+          textColor: Colors.white,
+          buttonColor: Colors.orangeAccent,
+        ),
       );
     }
   }
@@ -140,29 +132,81 @@ class _LoginScreenState extends State<LoginScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder:
-          (context) => CustomAlertDialog(
-            title: "Login exitoso",
-            message: "Sus credenciales son correctas.",
-            buttonText: "Aceptar",
-            colorbg: const Color.fromRGBO(23, 23, 34, 1),
-            icon: Icons.verified_outlined,
-            textColor: Colors.white,
-            buttonColor: Colors.blueAccent,
-            onConfirm: () async {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => screenToNavigate),
-              );
-              await _notificationService.initFCM();
-              _notificationService.setupListeners();
-
-              emailController.clear();
-              passwordController.clear();
-            },
-          ),
+      builder: (context) => CustomAlertDialog(
+        title: "Login exitoso",
+        message: "Sus credenciales son correctas.",
+        buttonText: "Aceptar",
+        colorbg: const Color.fromRGBO(23, 23, 34, 1),
+        icon: Icons.verified_outlined,
+        textColor: Colors.white,
+        buttonColor: Colors.blueAccent,
+        onConfirm: () async {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => screenToNavigate),
+          );
+          await _notificationService.initFCM();
+          _notificationService.setupListeners();
+          emailController.clear();
+          passwordController.clear();
+        },
+      ),
     );
   }
+
+  void _resetPassword() async {
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return AlertDialog(
+        title: const Text("Recuperar contraseña"),
+        content: TextField(
+          controller: resetEmailController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            labelText: 'Ingresa tu correo electrónico',
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Cancelar"),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          ElevatedButton(
+            child: const Text("Enviar"),
+            onPressed: () async {
+              final email = resetEmailController.text.trim();
+              Navigator.of(context).pop();
+
+              try {
+                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+              } catch (e) {
+                // Silenciar errores como "user-not-found"
+                print("Error al enviar email de recuperación: $e");
+              }
+
+              showDialog(
+                context: context,
+                builder: (context) => const CustomAlertDialog(
+                  title: "Correo enviado",
+                  message: "Si el correo está registrado, recibirás un email para restablecer tu contraseña.",
+                  buttonText: "Aceptar",
+                  colorbg: Color.fromRGBO(23, 23, 34, 1),
+                  icon: Icons.mail_outline,
+                  textColor: Colors.white,
+                  buttonColor: Colors.green,
+                ),
+              );
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +214,6 @@ class _LoginScreenState extends State<LoginScreen> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           bool isMobile = constraints.maxWidth < 850;
-
           return Stack(
             children: [
               Positioned.fill(
@@ -180,15 +223,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               isMobile
-                  ? Center(
-                    child: _buildLoginForm(),
-                  ) 
+                  ? Center(child: _buildLoginForm())
                   : Row(
-                    children: [
-                      Expanded(child: _buildWelcomeSection()),
-                      Expanded(child: _buildLoginForm()),
-                    ],
-                  ),
+                      children: [
+                        Expanded(child: _buildWelcomeSection()),
+                        Expanded(child: _buildLoginForm()),
+                      ],
+                    ),
             ],
           );
         },
@@ -216,8 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
           SizedBox(height: 10),
           Text(
             'Accede de forma rápida y segura para optimizar el trabajo en el restaurante. '
-            '\n'
-            'Ya seas administrador o camarero, aquí encontrarás todas las herramientas necesarias para gestionar salas, mesas, pedidos y más.',
+            '\nYa seas administrador o camarero, aquí encontrarás todas las herramientas necesarias para gestionar salas, mesas, pedidos y más.',
             style: TextStyle(fontSize: 16, color: Colors.white),
           ),
         ],
@@ -277,7 +317,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Flexible(
                     child: TextButton(
-                      onPressed: () {},
+                      onPressed: _resetPassword,
                       child: Text(
                         '¿Olvidaste tu contraseña?',
                         style: TextStyle(color: Colors.blue),

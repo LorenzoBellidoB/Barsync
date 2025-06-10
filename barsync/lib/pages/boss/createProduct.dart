@@ -199,7 +199,7 @@ class CreateProductState extends State<CreateProduct> {
                                       ),
                                   ],
                                 );
-                              }).toList(),
+                              }),
                             ],
                           ),
                         ),

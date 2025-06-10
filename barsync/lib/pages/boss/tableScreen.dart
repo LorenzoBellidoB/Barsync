@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 class TableLayoutScreen extends StatefulWidget {
   final DocumentReference restaurantRef = Session().restaurantRef;
 
+  TableLayoutScreen({super.key});
+
   @override
   State<TableLayoutScreen> createState() => _TableLayoutScreenState();
 }
@@ -257,7 +259,7 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
   /// Dibuja visualmente la mesa o el taburete
   Widget _buildTableWidget(TableModel t, {bool dragging = false}) {
     if (t.type == 'Mesa') {
-      return Container(
+      return SizedBox(
         width: 100,
         height: 100,
         child: Stack(
@@ -720,9 +722,9 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
                   builder: (context, constraints) {
                     return Stack(
                       children: [
-                        ..._bars.map((bar) => _buildDraggableBar(bar)).toList(),
+                        ..._bars.map((bar) => _buildDraggableBar(bar)),
 
-                        ..._tables.map(_buildDraggableTable).toList(),
+                        ..._tables.map(_buildDraggableTable),
 
                         if (_selectedTable != null) _buildEditPanel(),
 

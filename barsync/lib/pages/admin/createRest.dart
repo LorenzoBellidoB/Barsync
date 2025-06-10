@@ -21,6 +21,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     'telefono': TextEditingController(),
     'nombreJefe': TextEditingController(),
     'email': TextEditingController(),
+    'cif': TextEditingController(), // <--- NEW: Add CIF controller
   };
 
   final TextEditingController _camarerosCountController =
@@ -95,6 +96,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
       address: restauranteControllers['direccion']!.text,
       phone: restauranteControllers['telefono']!.text,
       emailBoss: restauranteControllers['email']!.text,
+      cif: restauranteControllers['cif']!.text, // <--- NEW: Pass CIF to model
     );
     try {
       final firestore = FirebaseFirestore.instance;
@@ -108,7 +110,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
 
       createWaitersCookersBoss(restaurantDoc);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text("Restaurante y usuarios creados correctamente."),
           backgroundColor: Colors.green,
         ),
@@ -153,7 +155,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     try {
       if (await usersDuplicated(boss.email)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text("Jefe con email inválido."),
             backgroundColor: Colors.red,
           ),
@@ -182,7 +184,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
       try {
         if (await usersDuplicated(camarero.email)) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text("Camarero con email inválido."),
               backgroundColor: Colors.red,
             ),
@@ -212,7 +214,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
       try {
         if (await usersDuplicated(cocinero.email)) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text("Cocinero con email inválido."),
               backgroundColor: Colors.red,
             ),
@@ -267,7 +269,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
       obscureText: obscure,
       keyboardType: keyboardType,
       onChanged: onChanged,
-
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
@@ -333,7 +334,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Menú lateral (reutilizamos tu widget Menu)
-          Menu(role: 'Admin'),
+          const Menu(role: 'Admin'),
 
           // Contenido principal que aprovecha todo el ancho (menos margen)
           Expanded(
@@ -439,17 +440,16 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                         ),
                                         contentPadding:
                                             const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 12,
-                                            ),
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
                                       ),
-                                      items:
-                                          estados.map((estado) {
-                                            return DropdownMenuItem<String>(
-                                              value: estado,
-                                              child: Text(estado),
-                                            );
-                                          }).toList(),
+                                      items: estados.map((estado) {
+                                        return DropdownMenuItem<String>(
+                                          value: estado,
+                                          child: Text(estado),
+                                        );
+                                      }).toList(),
                                       onChanged: (value) {
                                         setState(() {
                                           estadoSeleccionado = value;
@@ -467,6 +467,12 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                       "Email",
                                       restauranteControllers['email']!,
                                       keyboardType: TextInputType.emailAddress,
+                                    ),
+                                    const SizedBox(height: 20), // <--- NEW: Add spacing for CIF
+                                    buildTextField(
+                                      "CIF", // <--- NEW: Add CIF TextField
+                                      restauranteControllers['cif']!,
+                                      keyboardType: TextInputType.text,
                                     ),
                                   ],
                                 ),
@@ -511,7 +517,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                               // Columna Derecha
                               Expanded(
                                 child: buildTextField(
-                                  "Número de Camareros",
+                                  "Número de Cocineros",
                                   _cocinerosCountController,
                                   keyboardType: TextInputType.number,
                                   onChanged: (_) => updateDynamicFields(),
@@ -577,7 +583,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
 
                     // ====================================
@@ -634,7 +640,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
 
                     const SizedBox(height: 30),
@@ -655,17 +661,16 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                               if (!validateFields()) {
                                 showDialog(
                                   context: context,
-                                  builder:
-                                      (_) => CustomAlertDialog(
-                                        title: 'Campos incompletos',
-                                        message:
-                                            'Completa todos los campos antes de continuar.',
-                                        buttonText: 'Aceptar',
-                                        colorbg: Color.fromRGBO(23, 23, 34, 1),
-                                        icon: Icons.warning_amber_rounded,
-                                        textColor: Colors.white,
-                                        buttonColor: Colors.orange,
-                                      ),
+                                  builder: (_) => const CustomAlertDialog(
+                                    title: 'Campos incompletos',
+                                    message:
+                                        'Completa todos los campos antes de continuar.',
+                                    buttonText: 'Aceptar',
+                                    colorbg: Color.fromRGBO(23, 23, 34, 1),
+                                    icon: Icons.warning_amber_rounded,
+                                    textColor: Colors.white,
+                                    buttonColor: Colors.orange,
+                                  ),
                                 );
                                 return;
                               }

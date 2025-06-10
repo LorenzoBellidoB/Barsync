@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class RestaurantModel {
   String id = '';
   String name;
+  String cif = '';
   Timestamp date;
   bool state;
   String address;
@@ -17,6 +18,7 @@ class RestaurantModel {
   RestaurantModel({
     this.id = '',
     required this.name,
+    required this.cif,
     required this.date,
     required this.state,
     required this.address,
@@ -32,6 +34,7 @@ class RestaurantModel {
     return {
       'id': id,
       'name': name,
+      'cif': cif,
       'emailBoss': emailBoss,
       'date': date,
       'state': state,
@@ -47,6 +50,7 @@ class RestaurantModel {
   factory RestaurantModel.fromJson(Map<String, dynamic> json) {
     return RestaurantModel(
       name: json['name'],
+      cif: json['cif'],
       state: json['state'],
       address: json['address'],
       phone: json['phone'],
@@ -62,6 +66,7 @@ class RestaurantModel {
   Map<String, dynamic> toJsonWithoutUsers() {
     return {
       'name': name,
+      'cif': cif,
       'emailBoss': emailBoss,
       'date': date,
       'state': state,
@@ -75,11 +80,11 @@ class RestaurantModel {
   factory RestaurantModel.fromJsonWithoutUsers(Map<String, dynamic> json) {
     return RestaurantModel(
       name: json['name'],
+      cif: json['cif']?.toString() ?? '',
       state: json['state'],
       address: json['address'],
       phone: json['phone'],
       emailBoss: json['emailBoss'],
-      tables: json['tables'],
       date: json['date'],
     );
   }

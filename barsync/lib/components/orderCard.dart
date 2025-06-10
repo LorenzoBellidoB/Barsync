@@ -13,11 +13,11 @@ class OrderCard extends StatefulWidget {
   final VoidCallback onButtonPressed;
 
   const OrderCard({
-    Key? key,
+    super.key,
     required this.comanda,
     required this.getWaiterName,
     required this.onButtonPressed,
-  }) : super(key: key);
+  });
 
   @override
   State<OrderCard> createState() => _OrderCardState();
@@ -54,8 +54,8 @@ class _OrderCardState extends State<OrderCard> {
 
     for (var product in widget.comanda.products) {
       final size = product.price.keys.first;
-      final addonsKey = product.addOns?.join(',') ?? '';
-      final key = '${product.name}_$size\_$addonsKey';
+      final addonsKey = product.addOns.join(',') ?? '';
+      final key = '${product.name}_${size}_$addonsKey';
     }
   }
 
@@ -97,8 +97,8 @@ class _OrderCardState extends State<OrderCard> {
     final Map<String, List<ProductOrderModel>> groupedProducts = {};
     for (var product in widget.comanda.products) {
       final size = product.price.keys.first;
-      final addonsKey = product.addOns?.join(',') ?? '';
-      final key = '${product.name}_$size\_$addonsKey';
+      final addonsKey = product.addOns.join(',') ?? '';
+      final key = '${product.name}_${size}_$addonsKey';
       groupedProducts.putIfAbsent(key, () => []).add(product);
     }
 

@@ -63,7 +63,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final isPortrait = mediaQuery.orientation == Orientation.portrait;
     final screenWidth = mediaQuery.size.width;
 
-    const double minScreenWidth = 1000.0;
+    const double minScreenWidth = 200.0;
 
     if (isPortrait || screenWidth < minScreenWidth) {
       return RotationMessageScreen();

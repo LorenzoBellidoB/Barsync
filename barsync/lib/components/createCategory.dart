@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 class CreateCategory extends StatefulWidget {
   final VoidCallback onClose;
 
-  const CreateCategory({Key? key, required this.onClose}) : super(key: key);
+  const CreateCategory({super.key, required this.onClose});
 
   @override
   _CreateCategoryState createState() => _CreateCategoryState();
@@ -29,7 +29,7 @@ class _CreateCategoryState extends State<CreateCategory> {
     });
 
     try {
-      CategoryModel categoria = new CategoryModel(
+      CategoryModel categoria = CategoryModel(
         name: nameController.text,
         description: descriptionController.text,
         image: '',

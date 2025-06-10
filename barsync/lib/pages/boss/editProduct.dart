@@ -48,7 +48,7 @@ class EditProductState extends State<EditProduct> {
   ///
   /// Llena el mapa [_priceControllers] con los precios asociados a cada tama o
   /// y el mapa [extras] con los extras asociados al producto.
-  /*******  ab392d83-b5d7-4ab6-a4ed-0b33e025ec2e  *******/
+  /// *****  ab392d83-b5d7-4ab6-a4ed-0b33e025ec2e  ******
   void initState() {
     super.initState();
     name = widget.producto.name;
@@ -177,7 +177,9 @@ class EditProductState extends State<EditProduct> {
                           _sectionTitle('Tamaños'),
                           _checkAllTile(sizes, () {
                             setState(() {
-                              for (var k in sizes.keys) sizes[k] = true;
+                              for (var k in sizes.keys) {
+                                sizes[k] = true;
+                              }
                             });
                           }),
                           ...sizes.keys.map((size) {
@@ -218,7 +220,9 @@ class EditProductState extends State<EditProduct> {
                           _sectionTitle('Complementos'),
                           _checkAllTile(extras, () {
                             setState(() {
-                              for (var k in extras.keys) extras[k] = true;
+                              for (var k in extras.keys) {
+                                extras[k] = true;
+                              }
                             });
                           }),
                           SizedBox(

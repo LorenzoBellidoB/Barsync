@@ -10,6 +10,8 @@ import '../../models/tableModel.dart';
 class WaiterScreen extends StatefulWidget {
   final DocumentReference restaurantRef = Session().restaurantRef;
 
+  WaiterScreen({super.key});
+
   @override
   State<WaiterScreen> createState() => _WaiterScreenState();
 }
@@ -228,8 +230,7 @@ class _TableWidget extends StatelessWidget {
   final TableModel table;
   final bool isSelected;
 
-  const _TableWidget({Key? key, required this.table, this.isSelected = false})
-    : super(key: key);
+  const _TableWidget({super.key, required this.table, this.isSelected = false});
 
   @override
   Widget build(BuildContext context) {
@@ -302,8 +303,7 @@ class _StoolWidget extends StatelessWidget {
   final TableModel table;
   final bool isSelected;
 
-  const _StoolWidget({Key? key, required this.table, this.isSelected = false})
-    : super(key: key);
+  const _StoolWidget({super.key, required this.table, this.isSelected = false});
 
   @override
   Widget build(BuildContext context) {
@@ -365,8 +365,7 @@ class _BottomPanel extends StatefulWidget {
   final TableModel table;
   final VoidCallback onClose;
 
-  const _BottomPanel({Key? key, required this.table, required this.onClose})
-    : super(key: key);
+  const _BottomPanel({super.key, required this.table, required this.onClose});
 
   @override
   State<_BottomPanel> createState() => __BottomPanelState();

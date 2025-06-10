@@ -42,39 +42,63 @@ Future<UserModel> saveUserWithRestaurant(
   return user;
 }
 
-// Changed from Stream to Future
-Future<List<UserModel>> getUsers() async {
-  final querySnapshot = await FirebaseFirestore.instance.collection('users').get();
-  return querySnapshot.docs.map((doc) {
-    final data = doc.data();
-    return UserModel.fromJson(data, doc.id);
-  }).toList();
+Stream<List<UserModel>> getUsers() {
+  return FirebaseFirestore.instance
+      .collection('users')
+      .snapshots()
+      .map(
+        (snapshot) =>
+            snapshot.docs.map((doc) {
+              final data = doc.data();
+              return UserModel.fromJson(data, doc.id);
+            }).toList(),
+      );
 }
 
-// Changed from Stream to Future
-Future<List<UserModel>> getUsersByEmail(String email) async {
-  final querySnapshot = await FirebaseFirestore.instance
+Stream<List<UserModel>> getUsersByEmail(String email) {
+  return FirebaseFirestore.instance
       .collection('users')
       .where('email', isEqualTo: email)
-      .get();
-  return querySnapshot.docs.map((doc) {
-    final data = doc.data();
-    return UserModel.fromJson(data, doc.id);
-  }).toList();
+      .snapshots()
+      .map((snapshot) {
+        return snapshot.docs.map((doc) {
+          final data = doc.data();
+          // Le pasamos tanto los datos como doc.id
+          return UserModel.fromJson(data, doc.id);
+        }).toList();
+      });
 }
 
-// Changed from Stream to Future
-Future<String> getUserIdByEmail(String email) async {
-  final querySnapshot = await FirebaseFirestore.instance
+Future<String?> getWaiterName(DocumentReference waiterRef) async {
+  if (waiterRef == null) return null;
+
+  try {
+    DocumentSnapshot snapshot = await waiterRef.get();
+    if (snapshot.exists) {
+      final data = snapshot.data() as Map<String, dynamic>;
+      return data['name'] ?? data['nombre'] ?? 'Nombre no disponible';
+    } else {
+      return 'Camarero no encontrado';
+    }
+  } catch (e) {
+    print('Error al obtener el nombre del camarero: $e');
+    return 'Error al obtener el nombre';
+  }
+}
+
+Stream<String> getUserIdByEmail(String email) {
+  return FirebaseFirestore.instance
       .collection('users')
       .where('email', isEqualTo: email)
       .limit(1)
-      .get();
-  if (querySnapshot.docs.isNotEmpty) {
-    return querySnapshot.docs.first.id;
-  } else {
-    throw Exception('No se encontró usuario con ese email');
-  }
+      .snapshots()
+      .map((snapshot) {
+        if (snapshot.docs.isNotEmpty) {
+          return snapshot.docs.first.id;
+        } else {
+          throw Exception('No se encontró usuario con ese email');
+        }
+      });
 }
 
 Future<List<UserModel>> getUsersByRestaurantAndRole(
@@ -82,11 +106,12 @@ Future<List<UserModel>> getUsersByRestaurantAndRole(
   String rol,
 ) async {
   try {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users') // <- asegurarse que es 'users'
-        .where('idRestaurante', isEqualTo: idRestaurante)
-        .where('rol', isEqualTo: rol)
-        .get();
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('users') // <- asegurarse que es 'users'
+            .where('idRestaurante', isEqualTo: idRestaurante)
+            .where('rol', isEqualTo: rol)
+            .get();
 
     return snapshot.docs.map((doc) {
       final data = doc.data();
@@ -99,21 +124,40 @@ Future<List<UserModel>> getUsersByRestaurantAndRole(
 }
 
 // Restaurants
-// Changed from Stream to Future
-Future<List<RestaurantModel>> getRestaurants() async {
-  final querySnapshot = await FirebaseFirestore.instance.collection('restaurants').get();
-  return querySnapshot.docs.map((doc) => RestaurantModel.fromJson(doc.data())).toList();
+Stream<List<RestaurantModel>> getRestaurants() {
+  return FirebaseFirestore.instance
+      .collection('restaurants')
+      .snapshots()
+      .map(
+        (snapshot) =>
+            snapshot.docs
+                .map((doc) => RestaurantModel.fromJson(doc.data()))
+                .toList(),
+      );
 }
 
+
+
 Future<DocumentReference> getRestaurantRefById(String id) async {
-  final snapshot = await FirebaseFirestore.instance
-      .collection('restaurants')
-      .where('id', isEqualTo: id)
-      .limit(1)
-      .get();
+  final snapshot =
+      await FirebaseFirestore.instance
+          .collection('restaurants')
+          .where('id', isEqualTo: id)
+          .limit(1)
+          .get();
 
   if (snapshot.docs.isNotEmpty) {
     return snapshot.docs.first.reference;
+  } else {
+    throw Exception('No se encontró restaurante con id: $id');
+  }
+}
+
+Future<RestaurantModel> getRestaurantById(String id) async {
+  final snapshot =
+      await FirebaseFirestore.instance.collection('restaurants').doc(id).get();
+  if (snapshot.exists) {
+    return RestaurantModel.fromJsonWithoutUsers(snapshot.data()!);
   } else {
     throw Exception('No se encontró restaurante con id: $id');
   }
@@ -182,7 +226,7 @@ Future<void> updateUsersRestaurant(
 }
 
 Future<void> deleteRestaurant(DocumentReference idRestaurante) async {
-  AuthService auth = new AuthService();
+  AuthService auth = AuthService();
   List<UserModel> bossList;
   List<UserModel> waiters;
   List<UserModel> cookers;
@@ -240,10 +284,11 @@ Future<void> addCategory(CategoryModel category) async {
 
 Future<CategoryModel?> getCategoryById(String categoryId) async {
   try {
-    final doc = await FirebaseFirestore.instance
-        .collection('categories')
-        .doc(categoryId)
-        .get();
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('categories')
+            .doc(categoryId)
+            .get();
 
     if (!doc.exists) {
       print('❗ Categoría no encontrada');
@@ -257,14 +302,6 @@ Future<CategoryModel?> getCategoryById(String categoryId) async {
   } catch (e) {
     print('❌ Error al obtener categoría por ID: $e');
     rethrow;
-  }
-}
-
-Future<void> deleteCategory(String id) async {
-  try {
-    await FirebaseFirestore.instance.collection('categories').doc(id).delete();
-  } catch (e) {
-    print(e);
   }
 }
 
@@ -315,240 +352,242 @@ Future<bool> updateProduct(ProductModel producto) async {
   }
 }
 
-// Changed from Stream to Future
-Future<List<OrderModel>> listenToOrdersPending(
+Stream<List<OrderModel>> listenToOrdersPending(
   DocumentReference restaurantRef,
-) async {
-  final querySnapshot = await FirebaseFirestore.instance
+) {
+  return FirebaseFirestore.instance
       .collection('orders')
       .where('restaurant', isEqualTo: restaurantRef)
       .where('state', isNotEqualTo: 'listo')
       .orderBy('state')
-      .get();
+      .snapshots()
+      .asyncMap((snapshot) async {
+        List<OrderModel> fetchedOrders = [];
 
-  List<OrderModel> fetchedOrders = [];
+        for (var doc in snapshot.docs) {
+          var data = doc.data();
+          List<ProductOrderModel> productsList = [];
 
-  for (var doc in querySnapshot.docs) {
-    var data = doc.data();
-    List<ProductOrderModel> productsList = [];
-
-    if (data['products'] != null && data['products'] is List) {
-      for (var ref in (data['products'] as List)) {
-        if (ref is DocumentReference) {
-          try {
-            final productOrderDoc = await ref.get();
-            if (productOrderDoc.exists) {
-              final productOrderData =
-                  productOrderDoc.data() as Map<String, dynamic>;
-              productsList.add(
-                ProductOrderModel.fromJson(productOrderData),
-              );
+          if (data['products'] != null && data['products'] is List) {
+            for (var ref in (data['products'] as List)) {
+              if (ref is DocumentReference) {
+                try {
+                  final productOrderDoc = await ref.get();
+                  if (productOrderDoc.exists) {
+                    final productOrderData =
+                        productOrderDoc.data() as Map<String, dynamic>;
+                    productsList.add(
+                      ProductOrderModel.fromJson(productOrderData),
+                    );
+                  }
+                } catch (e) {
+                  print('Error al obtener producto de orden: $e');
+                }
+              }
             }
-          } catch (e) {
-            print('Error al obtener producto de orden: $e');
           }
+
+          final restaurantRef = data['restaurant'];
+          if (restaurantRef is! DocumentReference) {
+            throw Exception('El campo "restaurant" no es válido.');
+          }
+
+          fetchedOrders.add(
+            OrderModel(
+              id: doc.id,
+              time: data['time'],
+              table: data['table'],
+              state: data['state'],
+              products: productsList,
+              idRestaurant: restaurantRef,
+              waiter: data['waiter'],
+            ),
+          );
         }
-      }
-    }
 
-    final restaurantRef = data['restaurant'];
-    if (restaurantRef is! DocumentReference) {
-      throw Exception('El campo "restaurant" no es válido.');
-    }
-
-    fetchedOrders.add(
-      OrderModel(
-        id: doc.id,
-        time: data['time'],
-        table: data['table'],
-        state: data['state'],
-        products: productsList,
-        idRestaurant: restaurantRef,
-        waiter: data['waiter'],
-      ),
-    );
-  }
-
-  return fetchedOrders;
+        return fetchedOrders;
+      });
 }
 
-// Changed from Stream to Future
-Future<List<OrderModel>> listenToOrdersReady(
-  DocumentReference restaurantRef,
-) async {
-  final querySnapshot = await FirebaseFirestore.instance
+Stream<List<OrderModel>> listenToOrdersReady(DocumentReference restaurantRef) {
+  return FirebaseFirestore.instance
       .collection('orders')
       .where('restaurant', isEqualTo: restaurantRef)
       .where('state', isEqualTo: 'listo')
       .orderBy('state')
-      .get();
+      .snapshots()
+      .asyncMap((snapshot) async {
+        List<OrderModel> fetchedOrders = [];
 
-  List<OrderModel> fetchedOrders = [];
+        for (var doc in snapshot.docs) {
+          var data = doc.data();
+          List<ProductOrderModel> productsList = [];
 
-  for (var doc in querySnapshot.docs) {
-    var data = doc.data();
-    List<ProductOrderModel> productsList = [];
-
-    if (data['products'] != null && data['products'] is List) {
-      for (var ref in (data['products'] as List)) {
-        if (ref is DocumentReference) {
-          try {
-            final productOrderDoc = await ref.get();
-            if (productOrderDoc.exists) {
-              final productOrderData =
-                  productOrderDoc.data() as Map<String, dynamic>;
-              productsList.add(
-                ProductOrderModel.fromJson(productOrderData),
-              );
+          if (data['products'] != null && data['products'] is List) {
+            for (var ref in (data['products'] as List)) {
+              if (ref is DocumentReference) {
+                try {
+                  final productOrderDoc = await ref.get();
+                  if (productOrderDoc.exists) {
+                    final productOrderData =
+                        productOrderDoc.data() as Map<String, dynamic>;
+                    productsList.add(
+                      ProductOrderModel.fromJson(productOrderData),
+                    );
+                  }
+                } catch (e) {
+                  print('Error al obtener producto de orden: $e');
+                }
+              }
             }
-          } catch (e) {
-            print('Error al obtener producto de orden: $e');
           }
+
+          final restaurantRef = data['restaurant'];
+          if (restaurantRef is! DocumentReference) {
+            throw Exception('El campo "restaurant" no es válido.');
+          }
+
+          fetchedOrders.add(
+            OrderModel(
+              id: doc.id,
+              time: data['time'],
+              table: data['table'],
+              state: data['state'],
+              products: productsList,
+              idRestaurant: restaurantRef,
+              waiter: data['waiter'],
+            ),
+          );
         }
-      }
-    }
 
-    final restaurantRef = data['restaurant'];
-    if (restaurantRef is! DocumentReference) {
-      throw Exception('El campo "restaurant" no es válido.');
-    }
-
-    fetchedOrders.add(
-      OrderModel(
-        id: doc.id,
-        time: data['time'],
-        table: data['table'],
-        state: data['state'],
-        products: productsList,
-        idRestaurant: restaurantRef,
-        waiter: data['waiter'],
-      ),
-    );
-  }
-
-  return fetchedOrders;
+        return fetchedOrders;
+      });
 }
 
-// Changed from Stream to Future
-Future<List<CategoryModel>> listenToCategories(
+Stream<List<CategoryModel>> listenToCategories(
   DocumentReference restaurantRef,
-) async {
-  final querySnapshot = await FirebaseFirestore.instance
+) {
+  return FirebaseFirestore.instance
       .collection('categories')
       .where('restaurant', isEqualTo: restaurantRef)
-      .get();
+      .snapshots()
+      .asyncMap((snapshot) async {
+        List<CategoryModel> fetchedCategories = [];
 
-  List<CategoryModel> fetchedCategories = [];
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
 
-  for (var doc in querySnapshot.docs) {
-    final data = doc.data();
+          List<ProductModel> productsList = [];
 
-    List<ProductModel> productsList = [];
-
-    if (data['products'] != null && data['products'] is List) {
-      for (var ref in (data['products'] as List<dynamic>)) {
-        if (ref is DocumentReference) {
-          final productDoc = await ref.get();
-          if (productDoc.exists) {
-            final productData = productDoc.data() as Map<String, dynamic>;
-            productsList.add(ProductModel.fromJson(productData));
+          if (data['products'] != null && data['products'] is List) {
+            for (var ref in (data['products'] as List<dynamic>)) {
+              if (ref is DocumentReference) {
+                final productDoc = await ref.get();
+                if (productDoc.exists) {
+                  final productData = productDoc.data() as Map<String, dynamic>;
+                  productsList.add(ProductModel.fromJson(productData));
+                }
+              }
+            }
           }
+
+          fetchedCategories.add(
+            CategoryModel(
+              id: doc.id,
+              name: data['name'],
+              description: data['description'],
+              image: data['image'],
+              products: productsList,
+              idRestaurant: data['restaurant'] as DocumentReference,
+            ),
+          );
         }
-      }
-    }
 
-    fetchedCategories.add(
-      CategoryModel(
-        id: doc.id,
-        name: data['name'],
-        description: data['description'],
-        image: data['image'],
-        products: productsList,
-        idRestaurant: data['restaurant'] as DocumentReference,
-      ),
-    );
-  }
-
-  return fetchedCategories;
+        return fetchedCategories;
+      });
 }
 
-// Changed from Stream to Future
-Future<List<RestaurantModel>> listenToRestaurantsWithUsers() async {
-  final querySnapshot = await FirebaseFirestore.instance.collection('restaurants').get();
-  List<RestaurantModel> fetchedRestaurants = [];
+Stream<List<RestaurantModel>> listenToRestaurantsWithUsers() {
+  return FirebaseFirestore.instance
+      .collection('restaurants')
+      .snapshots()
+      .asyncMap((snapshot) async {
+        List<RestaurantModel> fetchedRestaurants = [];
 
-  for (var doc in querySnapshot.docs) {
-    final data = doc.data();
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
 
-    List<UserModel> waitersList = [];
-    List<UserModel> cookersList = [];
+          List<UserModel> waitersList = [];
+          List<UserModel> cookersList = [];
 
-    if (data['waiters'] != null && data['waiters'] is List) {
-      for (var ref in data['waiters']) {
-        if (ref is DocumentReference) {
-          try {
-            var userDoc = await ref.get();
-            if (userDoc.exists) {
-              var userData = userDoc.data() as Map<String, dynamic>;
-              waitersList.add(UserModel.fromJson(userData, userDoc.id));
-            } else {
-              print('Waiter no encontrado: ${ref.id}');
+          if (data['waiters'] != null && data['waiters'] is List) {
+            for (var ref in data['waiters']) {
+              if (ref is DocumentReference) {
+                try {
+                  var userDoc = await ref.get();
+                  if (userDoc.exists) {
+                    var userData = userDoc.data() as Map<String, dynamic>;
+                    waitersList.add(UserModel.fromJson(userData, userDoc.id));
+                  } else {
+                    print('Waiter no encontrado: ${ref.id}');
+                  }
+                } catch (e) {
+                  print('Error obteniendo waiter ${ref.id}: $e');
+                }
+              }
             }
+          }
+
+          if (data['cookers'] != null && data['cookers'] is List) {
+            for (var ref in data['cookers']) {
+              if (ref is DocumentReference) {
+                try {
+                  var userDoc = await ref.get();
+                  if (userDoc.exists) {
+                    var userData = userDoc.data() as Map<String, dynamic>;
+                    cookersList.add(UserModel.fromJson(userData, userDoc.id));
+                  } else {
+                    print('Cooker no encontrado: ${ref.id}');
+                  }
+                } catch (e) {
+                  print('Error obteniendo cooker ${ref.id}: $e');
+                }
+              }
+            }
+          }
+
+          try {
+            fetchedRestaurants.add(
+              RestaurantModel(
+                id: doc.id,
+                name: data['name'],
+                cif: data['cif'],
+                state: data['state'],
+                address: data['address'],
+                phone: data['phone'],
+                emailBoss: data['emailBoss'],
+                date: data['date'],
+                waiters: waitersList,
+                cookers: cookersList,
+              ),
+            );
           } catch (e) {
-            print('Error obteniendo waiter ${ref.id}: $e');
+            print('Error construyendo RestaurantModel para ${doc.id}: $e');
           }
         }
-      }
-    }
 
-    if (data['cookers'] != null && data['cookers'] is List) {
-      for (var ref in data['cookers']) {
-        if (ref is DocumentReference) {
-          try {
-            var userDoc = await ref.get();
-            if (userDoc.exists) {
-              var userData = userDoc.data() as Map<String, dynamic>;
-              cookersList.add(UserModel.fromJson(userData, userDoc.id));
-            } else {
-              print('Cooker no encontrado: ${ref.id}');
-            }
-          } catch (e) {
-            print('Error obteniendo cooker ${ref.id}: $e');
-          }
-        }
-      }
-    }
-
-    try {
-      fetchedRestaurants.add(
-        RestaurantModel(
-          id: doc.id,
-          name: data['name'],
-          state: data['state'],
-          address: data['address'],
-          phone: data['phone'],
-          emailBoss: data['emailBoss'],
-          date: data['date'],
-          waiters: waitersList,
-          cookers: cookersList,
-        ),
-      );
-    } catch (e) {
-      print('Error construyendo RestaurantModel para ${doc.id}: $e');
-    }
-  }
-
-  return fetchedRestaurants;
+        return fetchedRestaurants;
+      });
 }
 
 Future<bool> usersDuplicated(String email) async {
   bool res = true;
-  // This line was problematic as getUsers() is now a Future, not a Stream
-  // It's also not ideal to fetch all users just to check for a duplicate email.
-  // A direct query is more efficient.
-  final users = await getUsersByEmail(email); // Use the new Future-based method
-  if (users.isNotEmpty) {
-    res = false;
+  List<UserModel> users = getUsers() as List<UserModel>;
+
+  for (UserModel u in users) {
+    if (u.email == email) {
+      res = false;
+    }
   }
   return res;
 }
@@ -595,52 +634,6 @@ Future<DocumentReference> createOrder(OrderModel order) async {
     print("❌ Error al guardar una comanda: $e");
     rethrow;
   }
-}
-
-Future<void> saveTableEdits(TableModel selectedTable, int tableNumber,
-    int dinners, String type) async {
-  if (selectedTable == null) return;
-  final original = selectedTable; // Removed '!' as it can be null initially
-  final newNumber = tableNumber;
-  final newDinners = dinners;
-  final newTipo = type;
-
-  await FirebaseFirestore.instance
-      .collection('tables')
-      .doc(original.id)
-      .update({
-        'number': newNumber,
-        'dinners': newDinners,
-        'type': newTipo,
-      });
-}
-
-Future<void> saveBarEdits(
-    BarModel _selectedBar, double width, double height, int rotation) async {
-  if (_selectedBar == null) return;
-
-  final original = _selectedBar; // Removed '!' as it can be null initially
-  final newWidth = width;
-  final newHeight = height;
-  final newRotation = rotation;
-
-  if (newWidth != null && newHeight != null) {
-    await FirebaseFirestore.instance.collection('bars').doc(original.id).update({
-      'width': newWidth,
-      'height': newHeight,
-      'rotation': newRotation,
-    });
-  }
-}
-
-Future<void> deleteTable(TableModel t, DocumentReference restaurantRef) async {
-  await FirebaseFirestore.instance.collection('tables').doc(t.id).delete();
-
-  await restaurantRef.update({
-    'tables': FieldValue.arrayRemove([
-      FirebaseFirestore.instance.collection('tables').doc(t.id),
-    ]),
-  });
 }
 
 Future<DocumentReference> createProductOrder(ProductOrderModel order) async {
@@ -770,4 +763,56 @@ Future<void> sendNotificationToWaiter({
   } on FirebaseFunctionsException catch (e) {
     print('Error al enviar notificación: ${e.message}');
   }
+}
+
+Future<void> saveTableEdits(TableModel selectedTable, int tableNumber,
+    int dinners, String type) async {
+  final original = selectedTable; // Removed '!' as it can be null initially
+  final newNumber = tableNumber;
+  final newDinners = dinners;
+  final newTipo = type;
+
+  await FirebaseFirestore.instance
+      .collection('tables')
+      .doc(original.id)
+      .update({
+        'number': newNumber,
+        'dinners': newDinners,
+        'type': newTipo,
+      });
+}
+
+Future<void> deleteCategory(String id) async {
+  try {
+    await FirebaseFirestore.instance.collection('categories').doc(id).delete();
+  } catch (e) {
+    print(e);
+  }
+}
+Future<void> saveBarEdits(
+    BarModel selectedBar, double width, double height, int rotation) async {
+  if (selectedBar == null) return;
+
+  final original = selectedBar; // Removed '!' as it can be null initially
+  final newWidth = width;
+  final newHeight = height;
+  final newRotation = rotation;
+
+  if (newHeight != null) {
+    await FirebaseFirestore.instance.collection('bars').doc(original.id).update({
+      'width': newWidth,
+      'height': newHeight,
+      'rotation': newRotation,
+    });
+  }
+}
+
+Future<void> deleteTable(TableModel t, DocumentReference restaurantRef) async {
+  await FirebaseFirestore.instance.collection('tables').doc(t.id).delete();
+
+  await restaurantRef.update({
+    'tables': FieldValue.arrayRemove([
+      FirebaseFirestore.instance.collection('tables').doc(t.id),
+    ]),
+  });
 }

@@ -6,7 +6,7 @@ import 'package:multicast_dns/multicast_dns.dart';
 
 class WifiPrinterSelectionScreen extends StatefulWidget {
   final Function(WifiPrinter) onSelected;
-  const WifiPrinterSelectionScreen({required this.onSelected});
+  const WifiPrinterSelectionScreen({super.key, required this.onSelected});
   @override
   _WifiPrinterSelectionScreenState createState() =>
       _WifiPrinterSelectionScreenState();
@@ -15,7 +15,7 @@ class WifiPrinterSelectionScreen extends StatefulWidget {
 class _WifiPrinterSelectionScreenState
     extends State<WifiPrinterSelectionScreen> {
   bool _scanning = true;
-  List<WifiPrinter> _printers = [];
+  final List<WifiPrinter> _printers = [];
 
   @override
   void initState() {

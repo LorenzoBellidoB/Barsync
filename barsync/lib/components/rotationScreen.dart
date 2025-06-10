@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class RotationMessageScreen extends StatelessWidget {
-  const RotationMessageScreen({Key? key}) : super(key: key);
+  const RotationMessageScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

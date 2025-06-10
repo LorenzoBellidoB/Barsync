@@ -47,7 +47,7 @@ class WifiPrinterManager {
     // 2) Productos
     for (final p in products) {
       _printer!
-        ..row([
+        .row([
           PosColumn(text: p.name, width: 8),
           PosColumn(
             text: '${p.price.values.first.toStringAsFixed(2)} EUR',

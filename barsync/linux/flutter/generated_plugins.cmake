@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   charset_converter
   file_selector_linux
+  printing
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
