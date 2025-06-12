@@ -4,11 +4,11 @@ class BillModel {
   String id;
   DocumentReference table;
   DocumentReference idRestaurant;
-  Timestamp startTime; // When the bill was opened
-  Timestamp? endTime; // When the bill was closed/paid
-  List<DocumentReference> orderRefs; // References to individual orders
-  String state; // e.g., 'open', 'paid', 'cancelled'
-  double totalAmount; // Calculated total
+  Timestamp startTime;
+  Timestamp? endTime;
+  List<DocumentReference> orderRefs;
+  String state;
+  double totalAmount;
 
   BillModel({
     this.id = '',

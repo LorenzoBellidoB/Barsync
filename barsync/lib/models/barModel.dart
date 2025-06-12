@@ -2,11 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BarModel {
   final String id;
-  final Map<String, dynamic> location; // { 'x': double, 'y': double }
+  final Map<String, dynamic> location;
   final DocumentReference restaurant;
   final double width;
   final double height;
-  final int rotation; // 0 ó 90
+  final int rotation;
 
   BarModel({
     required this.id,

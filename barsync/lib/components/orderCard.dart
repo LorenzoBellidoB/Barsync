@@ -9,13 +9,15 @@ import 'package:flutter/material.dart';
 
 class OrderCard extends StatefulWidget {
   final OrderModel comanda;
-  final Future<String> Function(OrderModel) getWaiterName;
+  final Future<String> getWaiterName;
+  final Future<String> type;
   final VoidCallback onButtonPressed;
 
   const OrderCard({
     super.key,
     required this.comanda,
     required this.getWaiterName,
+    required this.type,
     required this.onButtonPressed,
   });
 
@@ -47,9 +49,7 @@ class _OrderCardState extends State<OrderCard> {
     super.initState();
 
     _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
-      setState(() {
-        // Esto obliga a redibujar el widget cada minuto
-      });
+      setState(() {});
     });
 
     for (var product in widget.comanda.products) {
@@ -67,7 +67,6 @@ class _OrderCardState extends State<OrderCard> {
 
   @override
   Widget build(BuildContext context) {
-    // Colores según estado
     Color headerColor;
     Color footerColor;
     String buttonText;
@@ -120,7 +119,6 @@ class _OrderCardState extends State<OrderCard> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // CABECERA
           Container(
             decoration: BoxDecoration(
               color: headerColor,
@@ -133,13 +131,28 @@ class _OrderCardState extends State<OrderCard> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                FutureBuilder<int>(
-                  future: getTableNumber(widget.comanda),
+                FutureBuilder<List<dynamic>>(
+                  future: Future.wait([
+                    widget.type, // Future<String>
+                    getTableNumber(widget.comanda), // Future<int>
+                  ]),
                   builder: (context, snapshot) {
-                    final tableNumber =
-                        snapshot.data != null
-                            ? 'Mesa ${snapshot.data}'
-                            : 'Mesa...';
+                    if (!snapshot.hasData) {
+                      return const Text(
+                        'Cargando...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    }
+
+                    final String type = snapshot.data![0] as String;
+                    final int table = snapshot.data![1] as int;
+
+                    final tableNumber = '$type $table';
+
                     return Text(
                       tableNumber,
                       style: const TextStyle(
@@ -154,7 +167,6 @@ class _OrderCardState extends State<OrderCard> {
             ),
           ),
 
-          // CUERPO
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             child: Column(
@@ -169,7 +181,7 @@ class _OrderCardState extends State<OrderCard> {
                 const Divider(color: Colors.white24),
                 const SizedBox(height: 4),
                 FutureBuilder<String>(
-                  future: widget.getWaiterName(widget.comanda),
+                  future: widget.getWaiterName,
                   builder: (context, snapshot) {
                     final name = snapshot.data ?? '...';
                     return Text(
@@ -183,7 +195,6 @@ class _OrderCardState extends State<OrderCard> {
                 ),
                 const SizedBox(height: 8),
 
-                // PRODUCTOS AGRUPADOS CON RADIO
                 ...groupedProducts.entries.map((entry) {
                   final group = entry.value;
                   final product = group.first;
@@ -231,7 +242,6 @@ class _OrderCardState extends State<OrderCard> {
                               Checkbox(
                                 value: group.every((p) => p.done),
                                 onChanged: (bool? value) async {
-                                  // Solo permite marcar, no desmarcar
                                   if (group.every((p) => p.done)) return;
 
                                   final newValue = value ?? false;
@@ -241,16 +251,12 @@ class _OrderCardState extends State<OrderCard> {
                                       item.done = newValue;
                                     }
                                   });
-
-                                  // 🔥 Actualiza en Firestore
                                   for (var item in group) {
                                     await FirebaseFirestore.instance
                                         .collection('productsOrder')
                                         .doc(item.id)
                                         .update({'done': newValue});
                                   }
-
-                                  // 👇 Obtener el token del mesero
                                   final waiterToken = await getWaiterToken(
                                     widget.comanda,
                                   );
@@ -259,17 +265,19 @@ class _OrderCardState extends State<OrderCard> {
                                     final mesaNum = await getTableNumber(
                                       widget.comanda,
                                     );
+                                    final type =
+                                        await widget
+                                            .type; // 👈 Esperas el Future<String>
 
                                     await NotificationService()
                                         .sendNotificationToToken(
                                           token: waiterToken,
                                           title: 'Producto listo',
                                           body:
-                                              'Tu producto "${product.name}" de la Mesa $mesaNum está listo.',
+                                              'Tu producto "${product.name}" de $type $mesaNum está listo.',
                                         );
                                   }
 
-                                  // ✅ Si todos están hechos, dispara acción
                                   final allDone = widget.comanda.products.every(
                                     (p) => p.done,
                                   );
@@ -291,9 +299,7 @@ class _OrderCardState extends State<OrderCard> {
                                     fontSize: 16,
                                     color:
                                         group.every((p) => p.done)
-                                            ? Colors.greenAccent.withOpacity(
-                                              0.7,
-                                            )
+                                            ? Colors.greenAccent.withAlpha(70)
                                             : Colors.white70,
                                     fontStyle:
                                         group.every((p) => p.done)
@@ -312,7 +318,6 @@ class _OrderCardState extends State<OrderCard> {
             ),
           ),
 
-          // BOTÓN FINAL
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -330,13 +335,11 @@ class _OrderCardState extends State<OrderCard> {
                     return;
                 }
 
-                // Actualiza el estado en Firestore
                 await FirebaseFirestore.instance
                     .collection('orders')
                     .doc(widget.comanda.id)
                     .update({'state': newState});
 
-                // También puedes actualizar el estado local si lo necesitas
                 setState(() {
                   widget.comanda.state = newState;
                 });

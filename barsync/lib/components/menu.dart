@@ -88,7 +88,7 @@ class Menu extends StatelessWidget {
               ),
             ],
 
-            Spacer(), // Empuja el botón de abajo
+            Spacer(),
             Divider(color: Colors.grey.shade700),
             Padding(
               padding: const EdgeInsets.only(bottom: 20.0),

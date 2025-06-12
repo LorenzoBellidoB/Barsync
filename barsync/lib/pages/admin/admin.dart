@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:barsync/components/alert.dart';
+import 'package:barsync/components/flushBar.dart';
 import 'package:barsync/components/menu.dart';
 import 'package:barsync/components/rotationScreen.dart';
 import 'package:barsync/models/restaurantModel.dart';
@@ -41,9 +42,7 @@ class _AdminScreenState extends State<AdminScreen> {
       },
       onError: (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al escuchar los restaurantes')),
-          );
+          showErrorFlushbar(context, 'Error al escuchar los restaurantes');
         }
       },
     );

@@ -26,6 +26,19 @@ class NotificationService {
     importance: Importance.high,
   );
 
+  Future<void> _requestNotificationPermission() async {
+    final settings = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      // En Android 13+ esto muestra el diálogo del sistema
+    );
+
+    if (settings.authorizationStatus != AuthorizationStatus.authorized) {
+      print('🚫 Permiso de notificaciones denegado');
+    }
+  }
+
   Future<void> initFCM() async {
     // iOS permissions
     if (Platform.isIOS) {
@@ -39,6 +52,8 @@ class NotificationService {
         return;
       }
     }
+
+    await _requestNotificationPermission();
 
     // Android: Crear canal
     if (Platform.isAndroid) {
@@ -123,7 +138,7 @@ class NotificationService {
               _channel.id,
               _channel.name,
               channelDescription: _channel.description,
-              icon: android.smallIcon,
+              icon: '@mipmap/ic_launcher',
             ),
           ),
         );

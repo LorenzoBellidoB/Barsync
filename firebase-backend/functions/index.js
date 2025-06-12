@@ -16,6 +16,14 @@ exports.notifyWaiter = functions.https.onRequest(async (req, res) => {
       body,
     },
     token,
+    android: {
+      priority: "high",
+      notification: {title, body},
+    },
+    apns: {
+      headers: {"apns-priority": "10"},
+      payload: {aps: {sound: "default"}},
+    },
   };
 
   try {

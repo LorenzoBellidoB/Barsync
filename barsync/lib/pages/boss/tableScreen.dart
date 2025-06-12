@@ -44,9 +44,8 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
     _listenBars();
   }
 
-
-/// Escucha en tiempo real la colección de "mesas", filtrando por la referencia del restaurante. 
-/// Actualiza el estado de `_tables` con la lista de mesas cada vez que hay un cambio en la colección.
+  /// Escucha en tiempo real la colección de "mesas", filtrando por la referencia del restaurante.
+  /// Actualiza el estado de `_tables` con la lista de mesas cada vez que hay un cambio en la colección.
 
   void _listenTables() {
     FirebaseFirestore.instance
@@ -64,7 +63,6 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
           });
         });
   }
-
 
   /// Escucha en tiempo real la colección de "bars", filtrando por la referencia del
   /// restaurante. Actualiza el estado de `_bars` con la lista de barras cada vez que
@@ -94,7 +92,6 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
     return renderBox.globalToLocal(globalPos);
   }
 
-
   /// Gestiona el evento de tapUp en el canvas. Si estamos en modo "añadir mesa/taburete"
   /// o "añadir barra", crea un nuevo documento en la colección correspondiente
   /// con los datos pertinentes. Si estamos en modo "añadir barra", desactiva el modo
@@ -103,7 +100,6 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
     final local = _globalToLocal(details.globalPosition);
 
     if (_addingMode) {
-      // Si estamos en modo añadir mesa/taburete
       final tipo = _addingStoolMode ? 'Taburete' : 'Mesa';
       final nuevos = _tables.where((t) => t.type == tipo).length + 1;
 
@@ -140,7 +136,6 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
           .add(dataBar);
       await newBarRef.update({'id': newBarRef.id});
 
-      // Tras crear la barra, desactivamos modo “añadir barra”:
       setState(() {
         _addingBarMode = false;
       });
@@ -165,8 +160,6 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
     };
   }
 
-
-
   /// Selecciona una mesa/taburete y actualiza los campos de edici n en el panel
   /// inferior. Se utiliza al hacer un LongPress en una mesa/taburete en el canvas.
   ///
@@ -177,11 +170,11 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
       _selectedTable = t;
       _numberController = TextEditingController(text: '${t.number}');
       _dinnersController = TextEditingController(text: '${t.dinners}');
-      _tipoValue = t.type; // Inicializamos con el valor actual
+      _tipoValue = t.type;
     });
   }
 
-   Future<void> _updateBarLocation(BarModel bar, Offset globalPos) async {
+  Future<void> _updateBarLocation(BarModel bar, Offset globalPos) async {
     final local = _globalToLocal(globalPos);
     await FirebaseFirestore.instance.collection('bars').doc(bar.id).update({
       'location': {'x': local.dx, 'y': local.dy},
@@ -198,12 +191,10 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
       _selectedBar = bar;
       _barWidthController = TextEditingController(text: '${bar.width}');
       _barHeightController = TextEditingController(text: '${bar.height}');
-      _barRotationValue = bar.rotation; // 0 o 90
-      _addingBarMode = false; // cancelamos si estaba activo
+      _barRotationValue = bar.rotation;
+      _addingBarMode = false;
     });
   }
-
-  
 
   /// Cambia el valor de _barRotationValue entre 0 y 90, y
   /// intercambia el valor de los campos de texto de ancho y alto para
@@ -219,7 +210,6 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
     setState(() {
       if (_barRotationValue == 0) {
         _barRotationValue = 90;
-        // intercambiar ancho/alto para que la UI refleje el giro
         _barWidthController.text = '$altoActual';
         _barHeightController.text = '$anchoActual';
       } else {
@@ -229,7 +219,6 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
       }
     });
   }
-
 
   /// Construye el Draggable para cada mesa/taburete
   Widget _buildDraggableTable(TableModel t) {
@@ -287,7 +276,7 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
                 decoration: BoxDecoration(
                   color:
                       dragging
-                          ? _getColorByDinners(t.dinners).withOpacity(0.6)
+                          ? _getColorByDinners(t.dinners).withAlpha(60)
                           : _getColorByDinners(t.dinners),
                   shape: BoxShape.circle,
                 ),
@@ -398,7 +387,6 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
     }
   }
 
- 
   Widget _buildBarEditPanel() {
     return Positioned(
       right: 16,
@@ -469,7 +457,12 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        saveBarEdits(_selectedBar!, _barWidthController.text as double, _barHeightController.text as double, _barRotationValue);
+                        saveBarEdits(
+                          _selectedBar!,
+                          _barWidthController.text as double,
+                          _barHeightController.text as double,
+                          _barRotationValue,
+                        );
                       },
                       child: const Text('Guardar'),
                     ),
@@ -499,7 +492,7 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
     });
   }
 
-   Future<void> _onDeletePressed() async {
+  Future<void> _onDeletePressed() async {
     if (_selectedTable != null) {
       await deleteTable(_selectedTable!, widget.restaurantRef);
       setState(() {
@@ -570,8 +563,15 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 ElevatedButton.icon(
-                  onPressed: () {saveTableEdits(_selectedTable!, int.parse(_numberController.text), int.parse(_dinnersController.text), _tipoValue);
-                  _selectedTable = null;},
+                  onPressed: () {
+                    saveTableEdits(
+                      _selectedTable!,
+                      int.parse(_numberController.text),
+                      int.parse(_dinnersController.text),
+                      _tipoValue,
+                    );
+                    _selectedTable = null;
+                  },
                   icon: const Icon(Icons.save),
                   label: const Text('Guardar'),
                 ),
@@ -588,8 +588,6 @@ class _TableLayoutScreenState extends State<TableLayoutScreen> {
       ),
     );
   }
-
- 
 
   Widget _buildBottomMenu() {
     return Row(

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:barsync/components/flushBar.dart';
 import 'package:barsync/components/imagePicker.dart';
 import 'package:barsync/models/productModel.dart';
 import 'package:barsync/services/database/dataBaseManager.dart';
@@ -42,13 +43,11 @@ class EditProductState extends State<EditProduct> {
   final Map<String, TextEditingController> _priceControllers = {};
 
   @override
-  /*************  ✨ Windsurf Command ⭐  *************/
   /// Inicializa los valores de los campos del formulario con los valores del
   /// producto a editar.
   ///
   /// Llena el mapa [_priceControllers] con los precios asociados a cada tama o
   /// y el mapa [extras] con los extras asociados al producto.
-  /// *****  ab392d83-b5d7-4ab6-a4ed-0b33e025ec2e  ******
   void initState() {
     super.initState();
     name = widget.producto.name;
@@ -421,9 +420,7 @@ class EditProductState extends State<EditProduct> {
       if (success) {
         Navigator.of(context).pop();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error al actualizar el producto')),
-        );
+        showErrorFlushbar(context, 'Error al actualizar el producto');
       }
     }
   }
@@ -450,7 +447,7 @@ class EditProductState extends State<EditProduct> {
       String downloadUrl = await snapshot.ref.getDownloadURL();
       return downloadUrl;
     } catch (e) {
-      print('Error al subir imagen: $e');
+      showErrorFlushbar(context, 'Error al subir imagen: $e');
       return null;
     }
   }

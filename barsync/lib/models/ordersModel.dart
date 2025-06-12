@@ -20,7 +20,6 @@ class OrderModel {
     required this.waiter,
   });
 
-  // Convertir objeto a JSON (para Firebase)
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -33,7 +32,6 @@ class OrderModel {
     };
   }
 
-  // Crear objeto desde JSON (desde Firebase)
   factory OrderModel.fromJson(Map<String, dynamic> json, String id) {
     return OrderModel(
       id: id,
@@ -56,12 +54,10 @@ class OrderModel {
     );
   }
 
-  // Convertir objeto a JSON (para Firebase)
   Map<String, dynamic> toJsonWithoutProducts() {
     return {'state': state, 'time': time, 'restaurant': idRestaurant};
   }
 
-  // Crear objeto desde JSON (desde Firebase)
   factory OrderModel.fromJsonWithoutProducts(Map<String, dynamic> json) {
     return OrderModel(
       id: '',

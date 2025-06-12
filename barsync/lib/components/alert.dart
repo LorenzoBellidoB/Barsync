@@ -9,7 +9,7 @@ class CustomAlertDialog extends StatelessWidget {
   final Color textColor;
   final Color buttonColor;
   final VoidCallback? onConfirm;
-  final List<Widget>? actions; // 👈 Nuevo parámetro
+  final List<Widget>? actions;
 
   const CustomAlertDialog({
     super.key,
@@ -21,7 +21,7 @@ class CustomAlertDialog extends StatelessWidget {
     this.textColor = Colors.white,
     this.buttonColor = Colors.redAccent,
     this.onConfirm,
-    this.actions, // 👈 Incluido en el constructor
+    this.actions,
   });
 
   @override
@@ -59,7 +59,6 @@ class CustomAlertDialog extends StatelessWidget {
             style: TextStyle(fontSize: 16, color: textColor),
           ),
 
-          // 👇 Aquí usamos los actions pasados o el default
           actions:
               actions ??
               [

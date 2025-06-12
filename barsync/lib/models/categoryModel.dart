@@ -18,7 +18,6 @@ class CategoryModel {
     required this.idRestaurant,
   });
 
-  // Convertir objeto a JSON (para Firebase)
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -30,7 +29,6 @@ class CategoryModel {
     };
   }
 
-  // Crear objeto desde JSON (desde Firebase)
   factory CategoryModel.fromJson(Map<String, dynamic> json, String id) {
     return CategoryModel(
       id: id,
@@ -42,7 +40,6 @@ class CategoryModel {
     );
   }
 
-  // Convertir objeto a JSON (para Firebase)
   Map<String, dynamic> toJsonWithoutProducts() {
     return {
       'name': name,
@@ -52,7 +49,6 @@ class CategoryModel {
     };
   }
 
-  // Crear objeto desde JSON (desde Firebase)
   factory CategoryModel.fromJsonWithoutProducts(Map<String, dynamic> json) {
     return CategoryModel(
       name: json['name'],

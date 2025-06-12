@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 class ImagePickerWidget extends StatefulWidget {
   final Function(File?) onImageSelected;
-  final String? initialImageUrl; // NUEVO
+  final String? initialImageUrl;
 
   const ImagePickerWidget({
     super.key,
@@ -38,8 +38,7 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
     if (picked != null) {
       setState(() {
         _imageFile = File(picked.path);
-        _networkImageUrl =
-            null; // Si se selecciona una nueva, borramos la anterior
+        _networkImageUrl = null;
       });
       widget.onImageSelected(_imageFile);
     }

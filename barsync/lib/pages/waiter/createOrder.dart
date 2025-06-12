@@ -1,10 +1,11 @@
+import 'package:barsync/components/flushBar.dart';
 import 'package:barsync/pages/waiter/billingScreen.dart';
 import 'package:barsync/models/billModel.dart';
 import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/models/productModel.dart';
 import 'package:barsync/models/productOrderModel.dart';
 import 'package:barsync/models/tableModel.dart';
-import 'package:barsync/services/database/dataBaseManager.dart';
+import 'package:barsync/services/database/databaseManager.dart';
 import 'package:barsync/utils/sesion.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -32,6 +33,9 @@ class _OrderScreenState extends State<OrderScreen>
   BillModel? _currentBill;
 
   @override
+  /// Inicializa el estado del widget llamando a la función [_fetchCategories],
+  /// [_fetchProducts] y [_fetchCurrentBill] para cargar los datos de las
+  /// categorias, productos y cuenta actual.
   void initState() {
     super.initState();
     _tabController = TabController(length: eatTimes.length, vsync: this);
@@ -40,17 +44,17 @@ class _OrderScreenState extends State<OrderScreen>
     _fetchCurrentBill();
   }
 
+  /// Obtiene los datos de la categoría de la base de datos y actualiza el mapa `categoryNames` en el estado con los datos recuperados.
   void _fetchCategories() async {
-    final catSnap =
-        await FirebaseFirestore.instance.collection('categories').get();
+    final categories = await fetchCategories();
     setState(() {
-      categoryNames = {
-        for (var doc in catSnap.docs)
-          doc.reference: (doc.data())['name'] as String,
-      };
+      categoryNames = categories;
     });
   }
 
+  /// Escucha los cambios en la colección de productos de Firestore y
+  /// actualiza el mapa `productsByTime` en el estado con los productos
+  /// organizados por tipo de comida.
   void _fetchProducts() {
     FirebaseFirestore.instance.collection('products').snapshots().listen((
       snap,
@@ -65,12 +69,16 @@ class _OrderScreenState extends State<OrderScreen>
     });
   }
 
+  /// Busca la cuenta abierta actual de la mesa en Firestore
+  /// y la almacena en `_currentBill` en el estado. Si no
+  /// se encuentra una cuenta abierta, crea una nueva llamando
+  /// a [_createNewBill].
   Future<void> _fetchCurrentBill() async {
     final billSnap =
         await FirebaseFirestore.instance
             .collection('bills')
             .where('table', isEqualTo: getTableRefById(widget.table.id))
-            .where('state', isEqualTo: 'open') // Look for an open bill
+            .where('state', isEqualTo: 'open')
             .limit(1)
             .get();
 
@@ -87,6 +95,12 @@ class _OrderScreenState extends State<OrderScreen>
     }
   }
 
+  /// Crea una nueva cuenta en Firestore y actualiza `_currentBill` en el
+  /// estado con la cuenta recién creada. Llama a `setState` para notificar
+  /// a los widgets que dependen de `_currentBill` que se ha actualizado.
+  ///
+  /// Se llama a esta función cuando no se encuentra una cuenta abierta para
+  /// la mesa actual en Firestore.
   Future<void> _createNewBill() async {
     final newBill = BillModel(
       table: getTableRefById(widget.table.id),
@@ -103,6 +117,21 @@ class _OrderScreenState extends State<OrderScreen>
     });
   }
 
+  /// Agrega un producto a la orden actual, permitiendo al usuario
+  /// seleccionar tama os y extras.
+  ///
+  /// Primero llama a [_selectOptions] para mostrar un di logo con las
+  /// opciones de tama o y extras del producto. Si el usuario cierra el
+  /// di logo sin seleccionar nada, no hace nada.
+  ///
+  /// Si el usuario selecciona al menos un tama o, se agregan tantas
+  /// instancias de [ProductOrderModel] como tama os seleccionados a
+  /// [orderProducts], con los extras seleccionados.
+  ///
+  /// [product] es el producto que se va a agregar a la orden.
+  ///
+  /// Llama a [setState] para notificar a los widgets que dependen de
+  /// [orderProducts] que se ha actualizado.
   void _addToOrder(ProductModel product) async {
     final selection = await _selectOptions(product);
     if (selection == null || selection['sizes']!.isEmpty) return;
@@ -126,12 +155,18 @@ class _OrderScreenState extends State<OrderScreen>
     });
   }
 
+  /// Muestra una hoja modal inferior que permite al usuario seleccionar un tamaño y complementos para el producto dado. El usuario puede elegir un tamaño y múltiples complementos.
+  /// Las opciones seleccionadas se devuelven como un mapa que contiene una lista de tamaños seleccionados y una lista de complementos seleccionados.
+  /// Si no se selecciona ningún tamaño, se devuelve una lista vacía para los tamaños. La lista de complementos contiene los complementos seleccionados por el usuario.
+  /// Devuelve un `Future` que se resuelve en un mapa con las claves 'sizes' y 'addons', cada una conteniendo una lista de cadenas que representan las opciones seleccionadas,
+  /// o `null` si la modal se cierra sin selección.
+
   Future<Map<String, List<String>>?> _selectOptions(
     ProductModel product,
   ) async {
     final sizes = product.prices.keys.toList();
     final addons = product.addOns;
-    String? selSize; // Solo un tamaño seleccionado
+    String? selSize;
     Set<String> selAddons = {};
 
     return showModalBottomSheet<Map<String, List<String>>>(
@@ -273,8 +308,20 @@ class _OrderScreenState extends State<OrderScreen>
     );
   }
 
+  /// Devuelve el total de la orden actual.
   double _total() =>
       orderProducts.fold(0.0, (sum, p) => sum + p.price.values.first);
+
+  /// Muestra un resumen de la orden actual en una hoja modal deslizante.
+  ///
+  /// La hoja modal presenta un sumario detallado de los productos añadidos
+  /// a la orden, incluyendo el nombre del producto, sus complementos y el
+  /// subtotal de cada uno. Además, se muestra el total acumulado de la orden.
+  ///
+  /// Proporciona opciones para cancelar la orden actual, eliminando todos
+  /// los productos de la lista, o enviar la orden, lo que creará una nueva
+  /// orden en la base de datos y actualizará la cuenta actual con la
+  /// referencia de la nueva orden y el total actualizado.
 
   void _showOrderSummary() {
     showModalBottomSheet(
@@ -387,11 +434,8 @@ class _OrderScreenState extends State<OrderScreen>
                                         );
                                         return;
                                       }
-
-                                      // Create the order
-
                                       OrderModel order = OrderModel(
-                                        id: '', // Firestore will assign an ID
+                                        id: '',
 
                                         state: 'pendiente',
 
@@ -410,8 +454,6 @@ class _OrderScreenState extends State<OrderScreen>
                                         order,
                                       );
 
-                                      // Update the current bill with the new order's reference
-
                                       await FirebaseFirestore.instance
                                           .collection('bills')
                                           .doc(_currentBill!.id)
@@ -422,46 +464,33 @@ class _OrderScreenState extends State<OrderScreen>
 
                                             'totalAmount':
                                                 _currentBill!.totalAmount +
-                                                _total(), // Update total
+                                                _total(),
                                           });
-
-                                      // Clear orderProducts for the next order
 
                                       setState(() {
                                         orderProducts.clear();
 
-                                        // Optionally, show a success message
-
-                                        ScaffoldMessenger.of(
+                                        Navigator.pop(context);
+                                        showSuccessFlushbar(
                                           context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Comanda enviada y añadida a la cuenta!',
-                                            ),
-                                          ),
+                                          'Comanda enviada y añadida a la cuenta!',
                                         );
-
-                                        Navigator.pop(
-                                          context,
-                                        ); // Close the summary bottom sheet
                                       });
                                     }
                                     : null,
                             style: ButtonStyle(
-                              backgroundColor: WidgetStateProperty.resolveWith<
-                                Color?
-                              >((Set<WidgetState> states) {
-                                if (states.contains(WidgetState.disabled)) {
-                                  return Colors
-                                      .grey[400]; // Color cuando el botón está deshabilitado
-                                }
-                                return Colors
-                                    .green; // Color por defecto cuando el botón está habilitado
-                              }),
+                              backgroundColor:
+                                  WidgetStateProperty.resolveWith<Color?>((
+                                    Set<WidgetState> states,
+                                  ) {
+                                    if (states.contains(WidgetState.disabled)) {
+                                      return Colors.grey[400];
+                                    }
+                                    return Colors.green;
+                                  }),
                               foregroundColor: WidgetStateProperty.all(
                                 Colors.white,
-                              ), // Color del texto siempre blanco
+                              ),
                             ),
                             child: Text(
                               'Enviar Comanda',
@@ -722,17 +751,18 @@ class _OrderScreenState extends State<OrderScreen>
                         context,
                         MaterialPageRoute(
                           builder:
-                              (context) => BillingScreen(table: widget.table,waiter: Session().currentUser.name),
+                              (context) => BillingScreen(
+                                table: widget.table,
+                                waiter: Session().currentUser.name,
+                              ),
                         ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      minimumSize: Size(double.infinity, 50), // 👈 misma altura
+                      minimumSize: Size(double.infinity, 50),
                       backgroundColor: Colors.blue,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          20,
-                        ), // 👈 mismo estilo
+                        borderRadius: BorderRadius.circular(20),
                       ),
                     ),
                     child: Text(

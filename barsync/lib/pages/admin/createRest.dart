@@ -1,4 +1,5 @@
 import 'package:barsync/components/alert.dart';
+import 'package:barsync/components/flushBar.dart';
 import 'package:barsync/components/menu.dart';
 import 'package:barsync/models/restaurantModel.dart';
 import 'package:barsync/models/userModel.dart';
@@ -21,7 +22,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     'telefono': TextEditingController(),
     'nombreJefe': TextEditingController(),
     'email': TextEditingController(),
-    'cif': TextEditingController(), // <--- NEW: Add CIF controller
+    'cif': TextEditingController(),
   };
 
   final TextEditingController _camarerosCountController =
@@ -96,7 +97,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
       address: restauranteControllers['direccion']!.text,
       phone: restauranteControllers['telefono']!.text,
       emailBoss: restauranteControllers['email']!.text,
-      cif: restauranteControllers['cif']!.text, // <--- NEW: Pass CIF to model
+      cif: restauranteControllers['cif']!.text,
     );
     try {
       final firestore = FirebaseFirestore.instance;
@@ -109,15 +110,13 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
           .doc(idRestaurante);
 
       createWaitersCookersBoss(restaurantDoc);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Restaurante y usuarios creados correctamente."),
-          backgroundColor: Colors.green,
-        ),
+      showSuccessFlushbar(
+        context,
+        'Restaurante y usuarios creados correctamente.',
       );
       Navigator.pop(context);
     } catch (e) {
-      print(e);
+      showErrorFlushbar(context, 'Error al crear el restaurante: $e');
     }
   }
 
@@ -154,19 +153,14 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     print(boss.toJson());
     try {
       if (await usersDuplicated(boss.email)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Jefe con email inválido."),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showErrorFlushbar(context, 'Jefe con email inválido.');
       } else {
         await createOrUpdateAuthUserAndSave(boss, id);
         print(boss.toJson());
         listUsers.add(boss);
       }
     } catch (e) {
-      print(e);
+      showErrorFlushbar(context, e.toString());
     }
 
     print("CAMAREROS:");
@@ -183,12 +177,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
 
       try {
         if (await usersDuplicated(camarero.email)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Camarero con email inválido."),
-              backgroundColor: Colors.red,
-            ),
-          );
+          showErrorFlushbar(context, 'Camarero con email inválido.');
         } else {
           await createOrUpdateAuthUserAndSave(camarero, id);
           print(camarero.toJson());
@@ -213,12 +202,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
 
       try {
         if (await usersDuplicated(cocinero.email)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Cocinero con email inválido."),
-              backgroundColor: Colors.red,
-            ),
-          );
+          showErrorFlushbar(context, 'Cocinero con email inválido.');
         } else {
           await createOrUpdateAuthUserAndSave(cocinero, id);
           print(cocinero.toJson());
@@ -232,7 +216,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
     try {
       await updateUsersRestaurant(id, listUsers);
     } catch (e) {
-      print('Error al actualizar restaurante: $e');
+      showErrorFlushbar(context, 'Error al actualizar restaurante: $e');
     }
   }
 
@@ -333,15 +317,12 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Menú lateral (reutilizamos tu widget Menu)
           const Menu(role: 'Admin'),
 
-          // Contenido principal que aprovecha todo el ancho (menos margen)
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(top: 36, bottom: 16),
               child: Padding(
-                // Márgenes laterales en tablet: 16 px a cada lado
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,10 +337,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Divider(thickness: 1),
-
-                    // =======================================
-                    // Card: Datos generales del restaurante
-                    // =======================================
                     Padding(
                       padding: const EdgeInsets.only(top: 8, bottom: 16),
                       child: Card(
@@ -375,7 +352,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Columna Izquierda
                               Expanded(
                                 child: Column(
                                   children: [
@@ -399,7 +375,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
 
                               const SizedBox(width: 20),
 
-                              // Columna Derecha
                               Expanded(
                                 child: Column(
                                   children: [
@@ -440,16 +415,17 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                         ),
                                         contentPadding:
                                             const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 12,
-                                        ),
+                                              horizontal: 16,
+                                              vertical: 12,
+                                            ),
                                       ),
-                                      items: estados.map((estado) {
-                                        return DropdownMenuItem<String>(
-                                          value: estado,
-                                          child: Text(estado),
-                                        );
-                                      }).toList(),
+                                      items:
+                                          estados.map((estado) {
+                                            return DropdownMenuItem<String>(
+                                              value: estado,
+                                              child: Text(estado),
+                                            );
+                                          }).toList(),
                                       onChanged: (value) {
                                         setState(() {
                                           estadoSeleccionado = value;
@@ -468,9 +444,9 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                                       restauranteControllers['email']!,
                                       keyboardType: TextInputType.emailAddress,
                                     ),
-                                    const SizedBox(height: 20), // <--- NEW: Add spacing for CIF
+                                    const SizedBox(height: 20),
                                     buildTextField(
-                                      "CIF", // <--- NEW: Add CIF TextField
+                                      "CIF",
                                       restauranteControllers['cif']!,
                                       keyboardType: TextInputType.text,
                                     ),
@@ -485,9 +461,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
 
                     const Divider(thickness: 1),
 
-                    // =========================================
-                    // Card: Conteo de camareros y cocineros
-                    // =========================================
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Card(
@@ -502,7 +475,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                           ),
                           child: Row(
                             children: [
-                              // Columna Izquierda
                               Expanded(
                                 child: buildTextField(
                                   "Número de Camareros",
@@ -514,7 +486,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
 
                               const SizedBox(width: 20),
 
-                              // Columna Derecha
                               Expanded(
                                 child: buildTextField(
                                   "Número de Cocineros",
@@ -529,9 +500,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                       ),
                     ),
 
-                    // ====================================
-                    // Sección dinámica: Camareros
-                    // ====================================
                     if (camareros.isNotEmpty) ...[
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -560,7 +528,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  // Nombre
                                   Expanded(
                                     child: buildTextField(
                                       "Nombre ${entry.key + 1}",
@@ -570,7 +537,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
 
                                   const SizedBox(width: 20),
 
-                                  // Email
                                   Expanded(
                                     child: buildTextField(
                                       "Email ${entry.key + 1}",
@@ -586,9 +552,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                       }),
                     ],
 
-                    // ====================================
-                    // Sección dinámica: Cocineros
-                    // ====================================
                     if (cocineros.isNotEmpty) ...[
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -617,7 +580,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  // Nombre
                                   Expanded(
                                     child: buildTextField(
                                       "Nombre ${entry.key + 1}",
@@ -627,7 +589,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
 
                                   const SizedBox(width: 20),
 
-                                  // Email
                                   Expanded(
                                     child: buildTextField(
                                       "Email ${entry.key + 1}",
@@ -645,32 +606,27 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
 
                     const SizedBox(height: 30),
 
-                    // ====================================
-                    // Botones Crear / Cancelar
-                    // ====================================
                     Center(
                       child: Wrap(
                         spacing: 20,
                         runSpacing: 10,
                         children: [
-                          // ===================
-                          // Botón Crear
-                          // ===================
                           ElevatedButton.icon(
                             onPressed: () {
                               if (!validateFields()) {
                                 showDialog(
                                   context: context,
-                                  builder: (_) => const CustomAlertDialog(
-                                    title: 'Campos incompletos',
-                                    message:
-                                        'Completa todos los campos antes de continuar.',
-                                    buttonText: 'Aceptar',
-                                    colorbg: Color.fromRGBO(23, 23, 34, 1),
-                                    icon: Icons.warning_amber_rounded,
-                                    textColor: Colors.white,
-                                    buttonColor: Colors.orange,
-                                  ),
+                                  builder:
+                                      (_) => const CustomAlertDialog(
+                                        title: 'Campos incompletos',
+                                        message:
+                                            'Completa todos los campos antes de continuar.',
+                                        buttonText: 'Aceptar',
+                                        colorbg: Color.fromRGBO(23, 23, 34, 1),
+                                        icon: Icons.warning_amber_rounded,
+                                        textColor: Colors.white,
+                                        buttonColor: Colors.orange,
+                                      ),
                                 );
                                 return;
                               }
@@ -708,9 +664,6 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                             ),
                           ),
 
-                          // ===================
-                          // Botón Cancelar
-                          // ===================
                           ElevatedButton.icon(
                             onPressed: () {
                               setState(() {
@@ -753,7 +706,7 @@ class _CreateRestScreenState extends State<CreateRestScreen> {
                               elevation: 6,
                               shadowColor: Theme.of(
                                 context,
-                              ).colorScheme.secondary.withOpacity(0.5),
+                              ).colorScheme.secondary.withAlpha(50),
                             ),
                           ),
                         ],

@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:barsync/components/alert.dart';
+import 'package:barsync/components/flushBar.dart';
 import 'package:barsync/components/orderCard.dart';
 import 'package:barsync/components/rotationScreen.dart';
 import 'package:barsync/models/ordersModel.dart';
 import 'package:barsync/pages/kitchen/ordersPending.dart';
 import 'package:barsync/pages/login/login.dart';
 import 'package:barsync/services/auth/auth.dart';
-import 'package:barsync/services/database/dataBaseManager.dart';
+import 'package:barsync/services/database/databaseManager.dart';
 import 'package:barsync/utils/sesion.dart';
 import 'package:flutter/material.dart';
 
@@ -25,10 +26,18 @@ class _OrdersReadyState extends State<OrdersReady> {
   Set<String> expandedCategories = {};
 
   @override
+  /// Inicializa el estado del widget llamando a la función `listenToOrders`
+  /// para comenzar a escuchar pedidos pendientes en tiempo real.
   void initState() {
     super.initState();
     listenToOrders();
   }
+
+  /// Escucha en tiempo real la colección "orders" del restaurante actual y actualiza
+  /// el estado de `comandas` cada vez que se produzca un cambio en las comandas listas.
+  ///
+  /// Si se produce un error en el stream, muestra un mensaje en pantalla y
+  /// lanza una excepción.
 
   void listenToOrders() {
     _orderSubscription = listenToOrdersReady(Session().restaurantRef).listen(
@@ -42,38 +51,15 @@ class _OrdersReadyState extends State<OrdersReady> {
       onError: (error) {
         print('Error en el stream de orders: $error');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al escuchar las orders')),
-          );
+          showErrorFlushbar(context, 'Error al escuchar las orders');
         }
       },
     );
   }
 
-  Future<String> getWaiterName(OrderModel order) async {
-    final String waiterPath = order.waiter.path;
-    if (waiterNameCache.containsKey(waiterPath)) {
-      return waiterNameCache[waiterPath]!;
-    }
-
-    try {
-      final waiterSnapshot = await order.waiter.get();
-      if (!waiterSnapshot.exists) {
-        waiterNameCache[waiterPath] = 'Desconocido';
-        return 'Desconocido';
-      }
-
-      final waiterData = waiterSnapshot.data() as Map<String, dynamic>;
-      final name = waiterData['name'] ?? 'Sin nombre';
-      waiterNameCache[waiterPath] = name;
-      return name;
-    } catch (e) {
-      waiterNameCache[waiterPath] = 'Error';
-      return 'Error';
-    }
-  }
-
   @override
+  /// Cancela la suscripción al stream de pedidos listos y llama a `super.dispose()`
+  /// para liberar cualquier otro recurso.
   void dispose() {
     _orderSubscription?.cancel();
     super.dispose();
@@ -81,11 +67,10 @@ class _OrdersReadyState extends State<OrdersReady> {
 
   @override
   Widget build(BuildContext context) {
-        final mediaQuery = MediaQuery.of(context);
+    final mediaQuery = MediaQuery.of(context);
     final isPortrait = mediaQuery.orientation == Orientation.portrait;
     final screenWidth = mediaQuery.size.width;
 
-    // Define the minimum width for landscape or larger screens
     const double minScreenWidth = 1000.0;
 
     if (isPortrait || screenWidth < minScreenWidth) {
@@ -238,11 +223,11 @@ class _OrdersReadyState extends State<OrdersReady> {
                 comandas.map((comanda) {
                   return OrderCard(
                     comanda: comanda,
-                    getWaiterName: getWaiterName,
+                    getWaiterName: getWaiterName(comanda.waiter),
+                    type: getTableType(comanda),
                     onButtonPressed:
                         () => {
                           print(comanda.toJson()),
-                          // Acción del botón aquí, por ejemplo cambiar estado
                           print('Botón presionado para mesa ${comanda.table}'),
                         },
                   );

@@ -7,7 +7,7 @@ class ProductModel {
   String description;
   List<String> eatTimes;
   List<String> addOns;
-  Map<String, double> prices; // <-- Cambio importante aquí
+  Map<String, double> prices;
   DocumentReference<Object?> idRestaurant;
   DocumentReference<Object?> idCategory;
 
@@ -32,7 +32,7 @@ class ProductModel {
       'image': image,
       'add_ons': addOns,
       'eat_times': eatTimes,
-      'prices': prices, // Firebase guarda Map<String, double> sin problema
+      'prices': prices,
       'restaurant': idRestaurant,
       'id_category': idCategory,
     };

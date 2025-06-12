@@ -1,8 +1,7 @@
+import 'package:barsync/components/flushBar.dart';
 import 'package:barsync/models/categoryModel.dart';
-import 'package:barsync/services/database/dataBaseManager.dart'
-    as dataBaseManager;
+import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:barsync/utils/sesion.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class CreateCategory extends StatefulWidget {
@@ -17,7 +16,7 @@ class CreateCategory extends StatefulWidget {
 class _CreateCategoryState extends State<CreateCategory> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
-  String? _imageUrl; // Puedes usar esto si implementas carga de imagen
+  String? _imageUrl;
 
   bool _isSaving = false;
 
@@ -35,14 +34,12 @@ class _CreateCategoryState extends State<CreateCategory> {
         image: '',
         idRestaurant: Session().restaurantRef,
       );
-      await dataBaseManager.addCategory(categoria);
+      await addCategory(categoria);
 
       widget.onClose();
     } catch (e) {
       print("Error al crear categoría: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error al crear categoría')));
+      showErrorFlushbar(context, 'Error al crear categoría');
     } finally {
       setState(() {
         _isSaving = false;

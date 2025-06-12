@@ -1,11 +1,11 @@
 import 'dart:io';
+import 'package:barsync/components/flushBar.dart';
 import 'package:barsync/components/imagePicker.dart';
 import 'package:barsync/models/productModel.dart';
 import 'package:barsync/services/database/dataBaseManager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:barsync/utils/sesion.dart';
 
 class CreateProduct extends StatefulWidget {
@@ -396,9 +396,7 @@ class CreateProductState extends State<CreateProduct> {
       String? url = await uploadImage(_imageFile, userId);
 
       if (url == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al subir la imagen.')));
+        showErrorFlushbar(context, 'Error al subir la imagen.');
         return;
       }
 
@@ -450,7 +448,7 @@ class CreateProductState extends State<CreateProduct> {
       TaskSnapshot snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } on FirebaseException catch (e) {
-      print('Error al subir imagen: $e');
+      showErrorFlushbar(context, ('Error al subir imagen: $e'));
       return null;
     }
   }

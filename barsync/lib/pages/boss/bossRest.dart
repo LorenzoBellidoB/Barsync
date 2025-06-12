@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:barsync/components/createCategory.dart';
+import 'package:barsync/components/flushBar.dart';
 import 'package:barsync/components/menu.dart';
 import 'package:barsync/components/rotationScreen.dart';
 import 'package:barsync/models/categoryModel.dart';
@@ -40,26 +41,31 @@ class _BossScreenState extends State<BossScreen> {
   /// Si se produce un error en el stream, muestra un mensaje en pantalla y
   /// lanza una excepción.
   Future<void> listenCategories() async {
-  try {
-    final fetchedCategories = listenToCategories(Session().restaurantRef);
-    if (mounted) {
-      setState(() {
-        categorias = fetchedCategories as List<CategoryModel>;
+    try {
+      print('hola');
+      _categorySubscription = listenToCategories(
+        Session().restaurantRef,
+      ).listen((fetchedCategories) {
+        if (mounted) {
+          setState(() {
+            categorias = fetchedCategories;
+          });
+        }
       });
-    }
-  } catch (error) {
-    print('Error al obtener categorías: $error');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cargar las categorías')),
-      );
+    } catch (error) {
+      print('Error al obtener categorías: $error');
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showErrorFlushbar(context, 'Error al cargar las categorías');
+        });
+      }
     }
   }
-}
 
   @override
   /// Cancela la suscripción al stream de categorías y llama a `super.dispose()`
   /// para liberar cualquier otro recurso que el widget pueda estar utilizando.
+  @override
   void dispose() {
     _categorySubscription?.cancel();
     super.dispose();
@@ -315,7 +321,7 @@ class _BossScreenState extends State<BossScreen> {
                                       showDialog(
                                         context: context,
                                         builder:
-                                            (ctx) => AlertDialog(
+                                            (context) => AlertDialog(
                                               title: Text(
                                                 'Confirmar Eliminación',
                                               ),
@@ -325,7 +331,9 @@ class _BossScreenState extends State<BossScreen> {
                                               actions: [
                                                 TextButton(
                                                   onPressed:
-                                                      () => Navigator.pop(ctx),
+                                                      () => Navigator.pop(
+                                                        context,
+                                                      ),
                                                   child: Text('Cancelar'),
                                                 ),
                                                 TextButton(
@@ -333,7 +341,7 @@ class _BossScreenState extends State<BossScreen> {
                                                     await deleteCategory(
                                                       categoria.id,
                                                     );
-                                                    Navigator.pop(ctx);
+                                                    Navigator.pop(context);
                                                     listenCategories();
                                                   },
                                                   child: Text('Eliminar'),
@@ -414,11 +422,7 @@ class _BossScreenState extends State<BossScreen> {
                                     TableCell(
                                       verticalAlignment:
                                           TableCellVerticalAlignment.middle,
-                                      child: Center(
-                                        child: Text(
-                                          '',
-                                        ), 
-                                      ),
+                                      child: Center(child: Text('')),
                                     ),
                                     TableCell(
                                       verticalAlignment:
@@ -446,7 +450,6 @@ class _BossScreenState extends State<BossScreen> {
                                               MainAxisAlignment.center,
                                           children: [
                                             iconButton(Icons.edit, () async {
-                                              // Acción de editar
                                               Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
@@ -456,7 +459,6 @@ class _BossScreenState extends State<BossScreen> {
                                                       ),
                                                 ),
                                               ).then((_) {
-                                                
                                                 listenCategories();
                                                 setState(() {});
                                               });
@@ -467,24 +469,14 @@ class _BossScreenState extends State<BossScreen> {
                                                   deleteProduct(producto);
 
                                               if (await borrado) {
-                                                ScaffoldMessenger.of(
+                                                showSuccessFlushbar(
                                                   context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      'Producto eliminado correctamente',
-                                                    ),
-                                                  ),
+                                                  'Producto eliminado correctamente',
                                                 );
                                               } else {
-                                                ScaffoldMessenger.of(
+                                                showErrorFlushbar(
                                                   context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      'Error al eliminar el producto',
-                                                    ),
-                                                  ),
+                                                  'Error al eliminar el producto',
                                                 );
                                               }
                                               listenCategories();

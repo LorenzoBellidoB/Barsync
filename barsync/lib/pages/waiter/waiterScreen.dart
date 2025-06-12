@@ -5,8 +5,6 @@ import 'package:barsync/utils/sesion.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-import '../../models/tableModel.dart';
-
 class WaiterScreen extends StatefulWidget {
   final DocumentReference restaurantRef = Session().restaurantRef;
 
@@ -23,26 +21,42 @@ class _WaiterScreenState extends State<WaiterScreen>
   late TabController _tabController;
 
   @override
+  /// Inicializa el estado del widget creando un TabController para dos pestañas: "Mesas" y "Barra".
   void initState() {
     super.initState();
-    // Creamos un TabController para dos pestañas: "Mesas" y "Barra"
     _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
+  /// Cancela la suscripci n al TabController y llama a `super.dispose()`
+  /// para liberar cualquier otro recurso que el widget pueda estar utilizando.
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
 
+  /// Selecciona una mesa y actualiza el estado de `_selectedTable` para que muestre
+  /// su informaci n en el panel inferior. Se utiliza al hacer un LongPress en una
+  /// mesa en el canvas.
+  //
+  /// Actualiza el estado de `_selectedTable` con el valor de `table`.
+
   void _selectTable(TableModel table) {
     setState(() => _selectedTable = table);
   }
 
+  /// Limpia la selección actual de mesa y oculta el panel inferior.
+  ///
+  /// Se utiliza al hacer un tap en el bot n "Cerrar" en el panel inferior.
+  ///
+  /// Actualiza el estado de `_selectedTable` a `null`.
   void _clearSelection() {
     setState(() => _selectedTable = null);
   }
 
+  /// Devuelve `true` si el panel inferior debe mostrarse y `false` en caso
+  /// contrario. El panel se muestra solo si la mesa seleccionada no est  ocupada
+  /// o si el camarero actual atiende esa mesa.
   bool _shouldShowPanel() {
     if (_selectedTable == null) return false;
     final table = _selectedTable!;
@@ -50,17 +64,18 @@ class _WaiterScreenState extends State<WaiterScreen>
     return table.state != 'ocupado' || table.waiter?.id == currentUser.id;
   }
 
+  /// Maneja el evento de tap en una mesa del canvas. Si el camarero actual
+  /// atiende esa mesa, va directamente a la pantalla de orden. Si no est  ocupada,
+  /// la selecciona para mostrar su informaci n en el panel inferior.
   void _onTableTap(TableModel table) {
     final currentUser = Session().currentUser;
 
     if (table.state == 'ocupado' && table.waiter?.id == currentUser.id) {
-      // Si el camarero actual atiende esa mesa, va directamente a la orden
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => OrderScreen(table: table)),
       );
     } else if (table.state != 'ocupado') {
-      // Si no está ocupada, la selecciona para abrir panel
       _selectTable(table);
     }
   }
@@ -104,7 +119,7 @@ class _WaiterScreenState extends State<WaiterScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.table_restaurant, color: Colors.white),
-                  SizedBox(width: 8), // Espacio entre ícono y texto
+                  SizedBox(width: 8),
                   Text(
                     'Mesas',
                     style: TextStyle(color: Colors.white, fontSize: 16),
@@ -147,8 +162,6 @@ class _WaiterScreenState extends State<WaiterScreen>
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-
-                  // Obtenemos la lista completa y la separamos en mesas y taburetes
                   final allTables =
                       snapshot.data!.docs.map((doc) {
                         final data = doc.data() as Map<String, dynamic>;
@@ -167,7 +180,6 @@ class _WaiterScreenState extends State<WaiterScreen>
                   return TabBarView(
                     controller: _tabController,
                     children: [
-                      // Pestaña "Mesas"
                       GridView.builder(
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
@@ -189,7 +201,6 @@ class _WaiterScreenState extends State<WaiterScreen>
                         },
                       ),
 
-                      // Pestaña "Barra" (mostramos solo taburetes con forma circular)
                       GridView.builder(
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
@@ -225,7 +236,6 @@ class _WaiterScreenState extends State<WaiterScreen>
   }
 }
 
-// Widget para mesas (cruz + círculo central)
 class _TableWidget extends StatelessWidget {
   final TableModel table;
   final bool isSelected;
@@ -298,7 +308,6 @@ class _TableWidget extends StatelessWidget {
   }
 }
 
-// Widget específico para taburetes: solo círculo y número
 class _StoolWidget extends StatelessWidget {
   final TableModel table;
   final bool isSelected;
@@ -515,6 +524,12 @@ class __BottomPanelState extends State<_BottomPanel> {
     );
   }
 
+  /// Realiza una comanda en la mesa [table].
+  ///
+  /// Primero, actualiza la cantidad de comensales y el estado de la mesa
+  /// a "ocupado". Luego, si hay alguna factura anterior en estado "paid",
+  /// la elimina. Finalmente, navega a la pantalla de creación de pedido.
+  ///
   Future<void> _onMakeOrder(TableModel table) async {
     final newDinners = int.tryParse(_dinnersController.text);
     if (newDinners == null) return;
@@ -530,7 +545,6 @@ class __BottomPanelState extends State<_BottomPanel> {
       'waiter': userRef,
     });
 
-    // Si hay alguna factura "paid" anterior, la eliminamos
     try {
       final querySnap =
           await FirebaseFirestore.instance
@@ -543,13 +557,10 @@ class __BottomPanelState extends State<_BottomPanel> {
       if (querySnap.docs.isNotEmpty) {
         await querySnap.docs.first.reference.delete();
       }
-    } catch (e) {
-      // Opcional: mostrar un snack o log
-    }
+    } catch (e) {}
 
     widget.onClose();
 
-    // Navega a la pantalla de creación de pedido
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => OrderScreen(table: table)),

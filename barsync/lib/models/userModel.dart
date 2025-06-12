@@ -78,9 +78,7 @@ class UserModel {
       idRestaurante:
           rawRef is DocumentReference
               ? rawRef
-              : FirebaseFirestore.instance.doc(
-                '/restaurants/fallback',
-              ), // fallback temporal
+              : FirebaseFirestore.instance.doc('/restaurants/fallback'),
     );
   }
 }

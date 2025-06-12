@@ -38,10 +38,8 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     setState(() => isLoading = true);
 
     try {
-      // Cambiar la contraseña en Firebase Auth
       await AuthService().updatePassword(newPass);
 
-      // Actualizar/crear el campo first_pass en Firestore
       final userDocRef = FirebaseFirestore.instance
           .collection('users')
           .doc(widget.uid);
@@ -71,7 +69,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // Calculamos un ancho máximo de 90% del ancho de la pantalla
     final maxWidth = MediaQuery.of(context).size.width * 0.9;
 
     return AlertDialog(
@@ -79,17 +76,14 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16),
       contentPadding: EdgeInsets.zero,
-      // Ajustamos ancho máximo mediante un ConstrainedBox
       content: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: SingleChildScrollView(
-          // Con SingleChildScrollView evitamos overflow cuando aparece el teclado
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Título con icono
                 Row(
                   children: [
                     Icon(Icons.lock_reset, color: Colors.grey, size: 28),
@@ -108,7 +102,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                // Campo nueva contraseña
                 TextField(
                   style: TextStyle(color: Colors.white),
                   controller: newPassController,
@@ -129,7 +122,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                // Campo confirmar contraseña
                 TextField(
                   style: TextStyle(color: Colors.white),
                   controller: confirmPassController,
@@ -150,11 +142,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 ),
                 const SizedBox(height: 24),
 
-                // Fila de botones
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    // Botón Cancelar
                     TextButton(
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
@@ -177,7 +167,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                     ),
                     const SizedBox(width: 12),
 
-                    // Botón Actualizar
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
@@ -229,7 +218,6 @@ class _DecoratedErrorDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Ancho máximo similar al ChangePasswordDialog
     final maxWidth = MediaQuery.of(context).size.width * 0.8;
 
     return AlertDialog(
@@ -245,7 +233,6 @@ class _DecoratedErrorDialog extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Título con icono rojo
                 Row(
                   children: [
                     Icon(
@@ -268,14 +255,12 @@ class _DecoratedErrorDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // Mensaje de error
                 Text(
                   message,
                   style: const TextStyle(fontSize: 16, color: Colors.white),
                 ),
                 const SizedBox(height: 24),
 
-                // Botón OK
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
