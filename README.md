@@ -10,9 +10,7 @@ BarSync es una aplicación Flutter para gestionar el trabajo operativo de un res
 
 ## 📸 Capturas
 
-> Pendiente de añadir capturas de pantalla de la aplicación.
-
-El repositorio sí incluye assets visuales de la app en `barsync/assets/images/` y `barsync/assets/icons/`, pero no se han detectado capturas finales de pantalla.
+![Pantalla de login de BarSync](screenshots/android-login.png)
 
 ## 🧩 Funcionalidades
 
