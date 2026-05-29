@@ -11,6 +11,8 @@ BarSync es una aplicación Flutter para gestionar el trabajo operativo de un res
 ## 📸 Capturas
 
 ![Pantalla de login de BarSync](screenshots/android-login.png)
+![Creación de mesas de BarSync](screenshots/barsync2.png)
+![Pantalla de cocina de BarSync](screenshots/barsync3.png)
 
 ## 🧩 Funcionalidades
 
